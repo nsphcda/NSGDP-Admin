@@ -49,12 +49,63 @@ export interface QueueDepth {
   oldestWaitingAgeMs: number | null;
 }
 
+export interface WorkerHeartbeat {
+  id: string;
+  host: string;
+  pid: number;
+  startedAt: string;
+  lastBeatAt: string;
+  uptimeSeconds: number;
+  rssMb: number;
+  heapUsedMb: number;
+  eventLoopLagMs: number;
+  concurrency: Record<string, number>;
+}
+
+export interface QueueRedisHealth {
+  snapshot: {
+    policy: string | null;
+    usedBytes: number;
+    maxBytes: number;
+    evictedKeys: number;
+  };
+  checkedAt: string;
+  errors: string[];
+  warnings: string[];
+}
+
 export interface QueuesHealth {
   status: 'healthy' | 'degraded';
   warnings: string[];
   deadLetterCount: number;
   queues: QueueDepth[];
+  /** Live worker processes. Optional so an older API still renders. */
+  workers?: WorkerHeartbeat[];
+  redis?: QueueRedisHealth | null;
   checkedAt: string;
+}
+
+export async function pauseQueue(queue: string): Promise<void> {
+  await apiClient.post(`/admin/queues/${encodeURIComponent(queue)}/pause`, {});
+}
+
+export async function resumeQueue(queue: string): Promise<void> {
+  await apiClient.post(`/admin/queues/${encodeURIComponent(queue)}/resume`, {});
+}
+
+export async function cleanQueue(
+  queue: string,
+): Promise<{ queue: string; removed: { completed: number; failed: number } }> {
+  const response = await apiClient.post<
+    ApiResponse<{ queue: string; removed: { completed: number; failed: number } }>
+  >(`/admin/queues/${encodeURIComponent(queue)}/clean`, {});
+  return response.data.data;
+}
+
+export async function drainQueue(queue: string, confirm: string): Promise<void> {
+  await apiClient.post(`/admin/queues/${encodeURIComponent(queue)}/drain`, {
+    confirm,
+  });
 }
 
 export interface DeadLetterEntry {

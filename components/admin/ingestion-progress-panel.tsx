@@ -124,8 +124,18 @@ function looksComplete(progress: IngestionProgress): boolean {
   );
 }
 
+function queuedCaption(progress: IngestionProgress): string {
+  const queue = progress.queue;
+  if (!queue) return "Queued — waiting for a worker";
+  const position =
+    queue.ahead === 0 ? "next in line" : `${queue.ahead} ahead of this run`;
+  if (queue.etaSeconds == null) return `Queued — ${position}`;
+  const minutes = Math.max(1, Math.round(queue.etaSeconds / 60));
+  return `Queued — ${position}, roughly ${minutes} min`;
+}
+
 function stageCaption(progress: IngestionProgress): string {
-  if (progress.status === "pending") return "Queued — waiting for a worker";
+  if (progress.status === "pending") return queuedCaption(progress);
   if (looksComplete(progress)) {
     if (progress.status === "failed") {
       return "Ingestion finished — queue later reported a stall; workbook data was written";

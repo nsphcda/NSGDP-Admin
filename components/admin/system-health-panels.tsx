@@ -28,6 +28,7 @@ import {
   Panel,
 } from "@/components/admin/admin-analytics-ui";
 import { HelpTip } from "@/components/admin/help-tip";
+import { QueueActions } from "@/components/admin/queue-actions";
 import {
   SYSTEM_HEALTH_DEPENDENCIES_TIP,
   SYSTEM_HEALTH_QUEUE_TIPS,
@@ -138,6 +139,7 @@ export function QueueHealthPanel({
   const totalWaiting = data.queues.reduce((s, q) => s + q.waiting, 0);
   const totalActive = data.queues.reduce((s, q) => s + q.active, 0);
   const totalFailed = data.queues.reduce((s, q) => s + q.failed, 0);
+  const workers = data.workers ?? [];
 
   return (
     <div className="space-y-4">
@@ -166,6 +168,91 @@ export function QueueHealthPanel({
         />
       </div>
 
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Panel
+          title="Workers"
+          description={
+            workers.length === 0
+              ? "No worker heartbeat seen. Nothing is consuming queues."
+              : `${workers.length} worker process(es) reporting.`
+          }
+          icon={Cog}
+          tone={workers.length === 0 ? "warning" : "success"}
+        >
+          {workers.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              Uploads, emails and ingestion are not being processed. Check that
+              the worker container is running.
+            </p>
+          ) : (
+            <ul className="divide-y text-sm">
+              {workers.map((w) => (
+                <li key={w.id} className="flex flex-wrap justify-between gap-2 py-2">
+                  <span className="font-medium">{w.id}</span>
+                  <span className="text-muted-foreground tabular-nums">
+                    up {formatUptime(w.uptimeSeconds)} · {w.rssMb} MB RSS ·{" "}
+                    {w.heapUsedMb} MB heap ·{" "}
+                    <span
+                      className={cn(
+                        w.eventLoopLagMs > 500 && "font-semibold text-destructive",
+                      )}
+                    >
+                      {w.eventLoopLagMs} ms lag
+                    </span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Panel>
+
+        <Panel
+          title="Queue Redis"
+          description={
+            data.redis
+              ? `Checked ${formatDate(data.redis.checkedAt)}`
+              : "No reading yet."
+          }
+          icon={Database}
+          tone={
+            data.redis && (data.redis.errors.length > 0 || data.redis.warnings.length > 0)
+              ? "warning"
+              : "success"
+          }
+        >
+          {data.redis ? (
+            <div className="space-y-2 text-sm">
+              <p>
+                Policy{" "}
+                <Badge
+                  variant="outline"
+                  className={cn(
+                    data.redis.snapshot.policy !== "noeviction" &&
+                      "border-destructive/40 text-destructive",
+                  )}
+                >
+                  {data.redis.snapshot.policy ?? "unknown"}
+                </Badge>{" "}
+                · {formatMb(data.redis.snapshot.usedBytes)} of{" "}
+                {data.redis.snapshot.maxBytes > 0
+                  ? formatMb(data.redis.snapshot.maxBytes)
+                  : "no limit"}{" "}
+                · {data.redis.snapshot.evictedKeys} evicted
+              </p>
+              {[...data.redis.errors, ...data.redis.warnings].map((m) => (
+                <p key={m} className="text-destructive">
+                  {m}
+                </p>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              The first reading arrives within a few minutes of boot.
+            </p>
+          )}
+        </Panel>
+      </div>
+
       <Panel
         title="Queue breakdown"
         titleTip={SYSTEM_HEALTH_QUEUE_TIPS.overview}
@@ -183,6 +270,7 @@ export function QueueHealthPanel({
                 <TableHead className="text-right">Failed</TableHead>
                 <TableHead className="text-right">Oldest waiting</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -221,6 +309,9 @@ export function QueueHealthPanel({
                       </Badge>
                     )}
                   </TableCell>
+                  <TableCell>
+                    <QueueActions queue={q.queue} paused={q.paused} />
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -229,6 +320,16 @@ export function QueueHealthPanel({
       </Panel>
     </div>
   );
+}
+
+function formatUptime(seconds: number): string {
+  if (seconds < 3600) return `${Math.round(seconds / 60)}m`;
+  if (seconds < 86400) return `${(seconds / 3600).toFixed(1)}h`;
+  return `${(seconds / 86400).toFixed(1)}d`;
+}
+
+function formatMb(bytes: number): string {
+  return `${Math.round(bytes / 1048576)} MB`;
 }
 
 export function SystemHealthRefreshing({ refreshing }: { refreshing: boolean }) {

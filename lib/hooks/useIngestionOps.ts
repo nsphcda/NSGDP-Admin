@@ -238,3 +238,22 @@ export function useStaleResolvedConflicts(page = 1, options?: { enabled?: boolea
     enabled: options?.enabled !== false,
   });
 }
+
+function invalidateQueueState(queryClient: ReturnType<typeof useQueryClient>) {
+  queryClient.invalidateQueries({ queryKey: [QUEUE_HEALTH_KEY] });
+  queryClient.invalidateQueries({ queryKey: ['system-health'] });
+}
+
+export function useQueueControls() {
+  const queryClient = useQueryClient();
+  const onSuccess = () => invalidateQueueState(queryClient);
+  const pause = useMutation({ mutationFn: api.pauseQueue, onSuccess });
+  const resume = useMutation({ mutationFn: api.resumeQueue, onSuccess });
+  const clean = useMutation({ mutationFn: api.cleanQueue, onSuccess });
+  const drain = useMutation({
+    mutationFn: ({ queue, confirm }: { queue: string; confirm: string }) =>
+      api.drainQueue(queue, confirm),
+    onSuccess,
+  });
+  return { pause, resume, clean, drain };
+}

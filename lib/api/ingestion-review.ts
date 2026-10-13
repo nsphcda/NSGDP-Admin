@@ -353,6 +353,8 @@ export interface IngestionProgress {
   startedAt: string | null;
   completedAt: string | null;
   createdAt: string;
+  /** Present only while the run is waiting in the queue. */
+  queue?: { ahead: number; etaSeconds: number | null } | null;
 }
 
 export interface InFlightIngestionJob extends IngestionProgress {
