@@ -822,6 +822,75 @@ export async function compareDatasets(
   return response.data.data;
 }
 
+export type DatasetSimilarityVerdict =
+  | 'likely_duplicate'
+  | 'overlapping'
+  | 'different';
+
+export interface DatasetCompareProfile {
+  id: string;
+  title: string;
+  slug: string;
+  status: string;
+  ingestionStatus: string;
+  format: string;
+  version: number;
+  partner: string | null;
+  responsibleDept: string | null;
+  publishedAt: string | null;
+  createdAt: string | null;
+  periodStart: string | null;
+  periodEnd: string | null;
+  tags: string[];
+  indicators: string[];
+  geography: string[];
+  /** Null when the dataset owns no rows in the warehouse (never ingested). */
+  content: {
+    rows: number;
+    indicators: number;
+    lgas: number;
+    yearMin: number | null;
+    yearMax: number | null;
+    completeness: number | null;
+  } | null;
+}
+
+export interface DatasetCompareProfileResult {
+  datasetA: DatasetCompareProfile;
+  datasetB: DatasetCompareProfile;
+  shared: {
+    indicators: number;
+    lgas: number;
+    years: number;
+    keys: number;
+    conflicts: number;
+    coverageOverlap: number;
+  } | null;
+  relationStatus: string | null;
+  similarity: {
+    score: number;
+    verdict: DatasetSimilarityVerdict;
+    components: Array<{
+      key: string;
+      label: string;
+      score: number | null;
+      weight: number;
+    }>;
+  };
+}
+
+export async function getDatasetCompareProfile(
+  datasetA: string,
+  datasetB: string,
+): Promise<DatasetCompareProfileResult> {
+  const response = await apiClient.get<
+    ApiResponse<DatasetCompareProfileResult>
+  >('/admin/analytics/compare/profile', {
+    params: { dataset_a: datasetA, dataset_b: datasetB },
+  });
+  return response.data.data;
+}
+
 export async function refreshAnalyticsCache(): Promise<void> {
   await apiClient.post('/analytics/refresh');
 }

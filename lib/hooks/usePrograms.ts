@@ -5,6 +5,10 @@ import {
   createProgramme,
   updateProgramme,
   archiveProgramme,
+  getProgrammeReports,
+  createProgrammeReport,
+  deleteProgrammeReport,
+  type CreateProgrammeReportPayload,
   type CreateProgrammePayload,
   type UpdateProgrammePayload,
   type GetProgrammesParams,
@@ -54,6 +58,36 @@ export function useArchiveProgram() {
     mutationFn: (slug: string) => archiveProgramme(slug),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['programmes'] });
+    },
+  });
+}
+
+export function useProgramReports(slug: string) {
+  return useQuery({
+    queryKey: ['programme-reports', slug],
+    queryFn: () => getProgrammeReports(slug),
+    enabled: !!slug,
+  });
+}
+
+export function useCreateProgramReport() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ slug, data }: { slug: string; data: CreateProgrammeReportPayload }) =>
+      createProgrammeReport(slug, data),
+    onSuccess: (_result, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['programme-reports', variables.slug] });
+    },
+  });
+}
+
+export function useDeleteProgramReport() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ slug, reportId }: { slug: string; reportId: string }) =>
+      deleteProgrammeReport(slug, reportId),
+    onSuccess: (_result, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['programme-reports', variables.slug] });
     },
   });
 }

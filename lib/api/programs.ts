@@ -1,5 +1,6 @@
 import { apiClient } from './client';
 import type { ApiResponse, PaginatedResponse } from '../types/common';
+import type { AdminDocument } from './documents';
 
 export type ProgrammeType =
   | 'campaign'
@@ -129,4 +130,41 @@ export async function updateProgramme(
 
 export async function archiveProgramme(slug: string): Promise<void> {
   await apiClient.delete(`/programs/${slug}`);
+}
+
+export interface CreateProgrammeReportPayload {
+  title: string;
+  description: string;
+  author?: string;
+  tags?: string[];
+}
+
+export async function getProgrammeReports(
+  slug: string,
+  limit = 50,
+): Promise<AdminDocument[]> {
+  const response = await apiClient.get<ApiResponse<{ data: AdminDocument[] }>>(
+    `/programs/${slug}/reports`,
+    { params: { page: 1, limit } },
+  );
+  return response.data.data.data;
+}
+
+/** Creates the report record; callers attach the file with uploadFile(). */
+export async function createProgrammeReport(
+  slug: string,
+  data: CreateProgrammeReportPayload,
+): Promise<AdminDocument> {
+  const response = await apiClient.post<ApiResponse<AdminDocument>>(
+    `/programs/${slug}/reports`,
+    data,
+  );
+  return response.data.data;
+}
+
+export async function deleteProgrammeReport(
+  slug: string,
+  reportId: string,
+): Promise<void> {
+  await apiClient.delete(`/programs/${slug}/reports/${reportId}`);
 }

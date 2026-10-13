@@ -138,7 +138,7 @@ export const ALIASES_TAB_TIP =
   "Upload column names and location strings from datasets that did not match the registry. GIS-only ward/facility mismatches are handled in GIS Reference → Name resolution, not this queue.";
 
 export const COMPARE_TAB_TIP =
-  "Pick two datasets and compare values on shared keys. Portal view matches public charts (live sources only); raw warehouse mode includes retracted or archived sources for forensics.";
+  "Pick two datasets to see how similar they are: metadata differences, warehouse overlap and a duplicate verdict. For value-level clashes use the Conflicts tab.";
 
 export const CONFLICTS_TAB_TIP =
   "Each row is one LGA/indicator/period. Every live dataset that reported a different number is listed — pick the winner. Charts keep the current analytics value until you do.";

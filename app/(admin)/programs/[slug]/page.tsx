@@ -12,6 +12,7 @@ import { useProgramBySlug, useArchiveProgram } from "@/lib/hooks/usePrograms";
 import { useAdminAccess } from "@/lib/hooks/useAdminAccess";
 import { ProgramFormModal } from "@/components/admin/program-form-modal";
 import { ProgramProgressModal } from "@/components/admin/program-progress-modal";
+import { ProgramReportsCard } from "@/components/admin/program-reports-card";
 import { HelpTip } from "@/components/admin/help-tip";
 import { RichHtmlContent } from "@/components/admin/rich-html-content";
 import { objectivesToEditorHtml } from "@/lib/objectives-html";
@@ -398,6 +399,12 @@ export default function ProgramDetailPage({ params }: { params: Promise<{ slug: 
           )}
         </CardContent>
       </Card>
+
+      <ProgramReportsCard
+        slug={program.slug}
+        canUpload={can("upload:programs")}
+        canDelete={canDelete}
+      />
 
       {/* Details Grid */}
       <div className="grid gap-4 lg:grid-cols-2">

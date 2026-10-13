@@ -5,6 +5,7 @@ import {
   getDatasetPipelineStats,
   getGovernanceAnalytics,
   compareDatasets,
+  getDatasetCompareProfile,
 } from "@/lib/api/admin";
 
 export function useDatasetPipelineStats() {
@@ -32,6 +33,15 @@ export function useDatasetCompare(
   return useQuery({
     queryKey: ["analytics", "compare", datasetA, datasetB, mode],
     queryFn: () => compareDatasets(datasetA!, datasetB!, mode),
+    enabled: Boolean(datasetA && datasetB && datasetA !== datasetB),
+    staleTime: 30_000,
+  });
+}
+
+export function useDatasetCompareProfile(datasetA?: string, datasetB?: string) {
+  return useQuery({
+    queryKey: ["admin", "datasets", "compare-profile", datasetA, datasetB],
+    queryFn: () => getDatasetCompareProfile(datasetA!, datasetB!),
     enabled: Boolean(datasetA && datasetB && datasetA !== datasetB),
     staleTime: 30_000,
   });
