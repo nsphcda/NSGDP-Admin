@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { FileText, Upload, MapPin, Scale, Settings, X, Lock, Search } from "lucide-react";
 import { Stepper } from "@/components/forms/stepper";
@@ -27,7 +27,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useCreateDataset } from "@/lib/hooks/useDatasets";
+import { useCreateDataset, useSubmitDataset } from "@/lib/hooks/useDatasets";
 import { useDevelopmentPartners } from "@/lib/hooks/useDevelopmentPartners";
 import { useDepartments, useMyDepartments } from "@/lib/hooks/useDepartments";
 import { useCategories } from "@/lib/hooks/useCategories";
@@ -70,6 +70,9 @@ const steps = [
   { id: 4, name: "Governance", icon: Scale },
   { id: 5, name: "Contact & Settings", icon: Settings },
 ];
+
+/** The step where files are attached. Drafts never resume past it. */
+const FILE_STEP = 3;
 
 const FORMAT_BY_EXTENSION: Record<string, DatasetFormat> = {
   csv: "csv",
@@ -127,6 +130,7 @@ export default function AdminUploadDatasetPage() {
   const canUpload = can("create:datasets");
   const { toast } = useToast();
   const createMutation = useCreateDataset();
+  const submitMutation = useSubmitDataset();
   const { data: orgsData } = useDevelopmentPartners(1, 200);
   const { data: categoriesData } = useCategories();
   // Only relevant for agency uploads — a dev-partner org's "responsible
@@ -165,7 +169,11 @@ export default function AdminUploadDatasetPage() {
   });
   const [draftRestored, setDraftRestored] = useState(() => initialDraft !== null);
 
-  const [currentStep, setCurrentStep] = useState(initialDraft?.currentStep ?? 1);
+  // Files cannot be restored, and steps 4-5 are only reachable once a file is
+  // attached, so a resumed draft never lands past the Upload Files step.
+  const [currentStep, setCurrentStep] = useState(
+    Math.min(initialDraft?.currentStep ?? 1, FILE_STEP),
+  );
   const [saving, setSaving] = useState(false);
   const [stepErrors, setStepErrors] = useState<Record<string, string>>({});
 
@@ -192,6 +200,14 @@ export default function AdminUploadDatasetPage() {
   const [limitations, setLimitations] = useState(initialDraft?.limitations ?? "");
   const [visibility, setVisibility] = useState<DatasetVisibility>(initialDraft?.visibility ?? "public");
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
+  // The dataset row is created before its files are sent. Remember it, and
+  // which files the server has already accepted, so a retry after a failed
+  // upload continues on the same dataset instead of creating a duplicate.
+  const [createdDataset, setCreatedDataset] = useState<{
+    id: string;
+    slug: string;
+  } | null>(null);
+  const attachedFileKeys = useRef<Set<string>>(new Set());
   const [responsibleDept, setResponsibleDept] = useState(initialDraft?.responsibleDept ?? "");
   const [contactPerson, setContactPerson] = useState(initialDraft?.contactPerson ?? "");
   const [contactEmail, setContactEmail] = useState(initialDraft?.contactEmail ?? "");
@@ -258,6 +274,8 @@ export default function AdminUploadDatasetPage() {
     clearDraft();
     setDraftRestored(false);
     setCurrentStep(1);
+    setCreatedDataset(null);
+    attachedFileKeys.current = new Set();
     setDevelopmentPartnerId(presetOrgId ?? "");
     setTitle("");
     setDescription("");
@@ -402,30 +420,67 @@ export default function AdminUploadDatasetPage() {
       const firstExt = uploadedFiles[0]?.name.split(".").pop()?.toLowerCase();
       const format: DatasetFormat = (firstExt && FORMAT_BY_EXTENSION[firstExt]) || "csv";
 
-      const dataset = await createMutation.mutateAsync({
-        title,
-        description,
-        categoryId: effectiveCategoryId,
-        format,
-        visibility,
-        tags,
-        geographicCoverage: selectedLGAs.join(", "),
-        temporalCoverageStart: temporalCoverageStart || undefined,
-        temporalCoverageEnd: temporalCoverageEnd || undefined,
-        diseaseIndicators: diseaseIndicators.length > 0 ? diseaseIndicators : undefined,
-        license: DEFAULT_DATASET_LICENSE,
-        methodology: methodology || undefined,
-        limitations: limitations || undefined,
-        developmentPartnerId: effectiveDevelopmentPartnerId,
-        responsibleDept: responsibleDept || undefined,
-        contactPerson: contactPerson || undefined,
-        contactEmail: contactEmail || undefined,
-        updateFrequency: updateFrequency || undefined,
-        status: isDraft ? "draft" : "pending",
-      });
+      // Always create as a draft. Submission for review happens only after
+      // every file has been accepted by the server, so a failed upload can
+      // never leave a "pending" dataset with no file in the review queue.
+      let dataset = createdDataset;
+      if (!dataset) {
+        const created = await createMutation.mutateAsync({
+          title,
+          description,
+          categoryId: effectiveCategoryId,
+          format,
+          visibility,
+          tags,
+          geographicCoverage: selectedLGAs.join(", "),
+          temporalCoverageStart: temporalCoverageStart || undefined,
+          temporalCoverageEnd: temporalCoverageEnd || undefined,
+          diseaseIndicators: diseaseIndicators.length > 0 ? diseaseIndicators : undefined,
+          license: DEFAULT_DATASET_LICENSE,
+          methodology: methodology || undefined,
+          limitations: limitations || undefined,
+          developmentPartnerId: effectiveDevelopmentPartnerId,
+          responsibleDept: responsibleDept || undefined,
+          contactPerson: contactPerson || undefined,
+          contactEmail: contactEmail || undefined,
+          updateFrequency: updateFrequency || undefined,
+          status: "draft",
+        });
+        dataset = { id: created.id, slug: created.slug };
+        setCreatedDataset(dataset);
+      }
 
       for (const uploadedFile of uploadedFiles) {
-        await uploadFile(uploadedFile.file, dataset.id);
+        const key = `${uploadedFile.name}:${uploadedFile.size}:${uploadedFile.file.lastModified}`;
+        if (attachedFileKeys.current.has(key)) continue;
+        try {
+          await uploadFile(uploadedFile.file, dataset.id);
+        } catch (uploadError) {
+          toast({
+            title: "File upload failed",
+            description: `${uploadedFile.name}: ${
+              uploadError instanceof Error ? uploadError.message : "upload failed"
+            }. The dataset is saved as a draft and was not submitted. Fix the file and press the button again to retry.`,
+            variant: "destructive",
+          });
+          return;
+        }
+        attachedFileKeys.current.add(key);
+      }
+
+      if (!isDraft) {
+        try {
+          await submitMutation.mutateAsync(dataset.slug);
+        } catch (submitError) {
+          toast({
+            title: "Files uploaded, but submitting failed",
+            description: `${
+              submitError instanceof Error ? submitError.message : "Could not submit for review"
+            }. The dataset is saved as a draft with its files; press Submit again to retry.`,
+            variant: "destructive",
+          });
+          return;
+        }
       }
 
       toast({
@@ -515,8 +570,8 @@ export default function AdminUploadDatasetPage() {
       {draftRestored && (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-info/25 bg-info/[0.06] px-4 py-3 text-sm">
           <p className="text-muted-foreground">
-            Resumed your in-progress draft from step {currentStep}. Files aren&apos;t saved between
-            visits — re-attach them on the Upload Files step if you had any selected before.
+            Resumed your in-progress draft. Files aren&apos;t saved between visits, so re-attach
+            them on this step before continuing.
           </p>
           <Button variant="ghost" size="sm" className="h-8 shrink-0" onClick={startOver}>
             Start over
