@@ -144,6 +144,14 @@ export async function apiFetchBlob(
   path: string,
   options: RequestOptions = {},
 ): Promise<Blob> {
+  return (await apiFetchBlobResponse(path, options)).blob;
+}
+
+/** Like apiFetchBlob, but also returns the response headers (e.g. X-Bulk-* counts). */
+export async function apiFetchBlobResponse(
+  path: string,
+  options: RequestOptions = {},
+): Promise<{ blob: Blob; headers: Headers }> {
   const { token } = options;
   let accessToken = token ?? getAccessToken();
 
@@ -171,7 +179,7 @@ export async function apiFetchBlob(
     throw new ApiError(res.status, message, details);
   }
 
-  return res.blob();
+  return { blob: await res.blob(), headers: res.headers };
 }
 
 /**

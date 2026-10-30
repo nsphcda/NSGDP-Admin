@@ -12,6 +12,7 @@ import {
   Globe,
   Lock,
   Database,
+  Download,
   Loader2,
   RotateCcw,
   Search,
@@ -56,7 +57,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { useToast } from "@/lib/hooks/use-toast";
 import { useAdminAccess } from "@/lib/hooks/useAdminAccess";
 import { useAuth } from "@/lib/auth";
-import { adminApi, archiveDataset, bulkArchiveDatasets, publishDataset, unarchiveDataset, type ArchiveDatasetPayload } from "@/lib/api/admin";
+import { adminApi, archiveDataset, BULK_DOWNLOAD_MAX_DATASETS, bulkArchiveDatasets, bulkDownloadDatasets, publishDataset, unarchiveDataset, type ArchiveDatasetPayload } from "@/lib/api/admin";
 import type { DatasetStatus } from "@/lib/api/datasets";
 import type { Visibility } from "@/types";
 import { cn } from "@/lib/utils";
@@ -155,6 +156,9 @@ export default function DatasetsReviewPage() {
   const canApprove = can("approve:datasets");
   const canPublish = can("publish:datasets");
   const canArchive = can("archive:datasets");
+  // Everyone who can open this queue may try; the server skips (and
+  // reports) anything the caller is not allowed to download.
+  const canDownload = canViewQueue;
 
   const [scope, setScope] = useState<QueueScope>("platform-owner");
   const [tab, setTab] = useState<QueueTab>("all");
@@ -245,6 +249,44 @@ export default function DatasetsReviewPage() {
       toast({
         title: "Error",
         description: error instanceof Error ? error.message : "Bulk archive failed",
+        variant: "destructive",
+      }),
+  });
+
+  const bulkDownloadMutation = useMutation({
+    mutationFn: (slugs: string[]) => bulkDownloadDatasets(slugs),
+    onSuccess: (result) => {
+      const url = URL.createObjectURL(result.blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = result.fileName;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+
+      const { includedCount, skipped } = result;
+      if (skipped.length === 0) {
+        toast({
+          title: "Download ready",
+          description: `${includedCount} dataset${includedCount === 1 ? "" : "s"} downloaded.`,
+        });
+        return;
+      }
+      const titleBySlug = new Map(datasets.map((d) => [d.slug, d.title]));
+      const detail = skipped
+        .slice(0, 3)
+        .map((s) => `${titleBySlug.get(s.slug) ?? (s.slug || "A dataset")}: ${s.reason}`)
+        .join(" ");
+      toast({
+        title: `${includedCount} downloaded, ${skipped.length} skipped`,
+        description: `${detail}${skipped.length > 3 ? " …" : ""} Full list is in _download-report.json inside the ZIP.`,
+      });
+    },
+    onError: (error: unknown) =>
+      toast({
+        title: "Download failed",
+        description: error instanceof Error ? error.message : "Bulk download failed",
         variant: "destructive",
       }),
   });
@@ -387,13 +429,18 @@ export default function DatasetsReviewPage() {
   const isSearchPending = query.trim() !== debouncedQuery;
   const hasFilters = !!query || !!debouncedQuery || tab !== "pending";
   const showBulkArchive = canArchive && tab !== "archived";
-  const selectableOnPage = showBulkArchive
+  const showSelection = (canArchive || canDownload) && tab !== "archived";
+  const selectableOnPage = showSelection
     ? datasets.filter((d) => d.status !== "archived")
     : [];
   const allPageSelected =
     selectableOnPage.length > 0 &&
     selectableOnPage.every((d) => selectedSlugs.has(d.slug));
   const selectedDatasets = datasets.filter((d) => selectedSlugs.has(d.slug));
+  const selectedRestrictedCount = selectedDatasets.filter(
+    (d) => d.visibility === "restricted",
+  ).length;
+  const overDownloadLimit = selectedSlugs.size > BULK_DOWNLOAD_MAX_DATASETS;
   const selectedAnalyticsCount = selectedDatasets.filter((d) =>
     Boolean(d.analytics_published_at),
   ).length;
@@ -720,11 +767,30 @@ export default function DatasetsReviewPage() {
             </div>
           </div>
 
-          {showBulkArchive && selectedSlugs.size > 0 && (
-            <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-3">
+          {showSelection && selectedSlugs.size > 0 && (
+            <div
+              className={cn(
+                "flex flex-wrap items-center justify-between gap-3 rounded-xl border px-4 py-3",
+                showBulkArchive
+                  ? "border-destructive/20 bg-destructive/5"
+                  : "border-border bg-muted/30",
+              )}
+            >
               <p className="text-sm">
                 <span className="font-semibold tabular-nums">{selectedSlugs.size}</span>{" "}
                 selected
+                {selectedRestrictedCount > 0 ? (
+                  <span className="text-muted-foreground">
+                    {" "}
+                    · {selectedRestrictedCount} restricted (downloaded only if you have access)
+                  </span>
+                ) : null}
+                {overDownloadLimit ? (
+                  <span className="text-destructive">
+                    {" "}
+                    · download is limited to {BULK_DOWNLOAD_MAX_DATASETS} at a time
+                  </span>
+                ) : null}
                 {selectedAnalyticsCount > 0 ? (
                   <span className="text-muted-foreground">
                     {" "}
@@ -741,16 +807,35 @@ export default function DatasetsReviewPage() {
                 >
                   Clear
                 </Button>
-                <Button
-                  type="button"
-                  variant="destructive"
-                  size="sm"
-                  className="gap-1.5"
-                  onClick={() => setBulkArchiveOpen(true)}
-                >
-                  <Archive className="size-3.5" aria-hidden="true" />
-                  Archive selected
-                </Button>
+                {canDownload ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="gap-1.5"
+                    disabled={overDownloadLimit || bulkDownloadMutation.isPending}
+                    onClick={() => bulkDownloadMutation.mutate([...selectedSlugs])}
+                  >
+                    {bulkDownloadMutation.isPending ? (
+                      <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />
+                    ) : (
+                      <Download className="size-3.5" aria-hidden="true" />
+                    )}
+                    Download selected
+                  </Button>
+                ) : null}
+                {showBulkArchive ? (
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="sm"
+                    className="gap-1.5"
+                    onClick={() => setBulkArchiveOpen(true)}
+                  >
+                    <Archive className="size-3.5" aria-hidden="true" />
+                    Archive selected
+                  </Button>
+                ) : null}
               </div>
             </div>
           )}
@@ -809,7 +894,7 @@ export default function DatasetsReviewPage() {
                 <Table>
                   <TableHeader>
                     <TableRow className="h-11 bg-muted/40 text-[11px] uppercase tracking-wide hover:bg-muted/40">
-                      {showBulkArchive ? (
+                      {showSelection ? (
                         <TableHead className="h-11 w-10 px-3">
                           <Checkbox
                             checked={allPageSelected}
@@ -830,7 +915,7 @@ export default function DatasetsReviewPage() {
                   <TableBody>
                     {datasets.map((dataset) => (
                       <TableRow key={dataset.id} className="hover:bg-muted/30">
-                        {showBulkArchive ? (
+                        {showSelection ? (
                           <TableCell className="w-10 px-3 py-3.5">
                             {dataset.status !== "archived" ? (
                               <Checkbox
@@ -894,7 +979,7 @@ export default function DatasetsReviewPage() {
               {datasets.map((dataset) => (
                 <article key={dataset.id} className="rounded-xl border bg-card p-4">
                   <div className="flex items-start gap-3">
-                    {showBulkArchive && dataset.status !== "archived" ? (
+                    {showSelection && dataset.status !== "archived" ? (
                       <Checkbox
                         checked={selectedSlugs.has(dataset.slug)}
                         onCheckedChange={() => toggleSelectSlug(dataset.slug)}

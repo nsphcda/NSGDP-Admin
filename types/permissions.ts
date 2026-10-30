@@ -38,6 +38,7 @@ export type PermissionAction =
   | "manage:analytics"       // Force-refresh the platform analytics dashboard cache
   | "manage:gis-reference-data" // Choose active GIS layer datasets, reconcile ward names
   | "manage:indicators" // Manage the canonical indicator registry, alias review queue, and AI-assisted resolution admin
+  | "manage:learning" // Edit the Learning Hub (guides, paths, videos, FAQs, glossary, templates, updates) and its media library
   | "manage:department-members"; // Scoped: view/add/remove existing staff in department(s) the holder themselves belongs to
 
 export const PROGRAM_PERMISSION_ACTIONS: PermissionAction[] = [
@@ -90,6 +91,7 @@ export const PERMISSION_ACTION_LABELS: Record<PermissionAction, string> = {
   "manage:analytics": "Manage Analytics",
   "manage:gis-reference-data": "Manage GIS Reference Layers",
   "manage:indicators": "Manage Indicators",
+  "manage:learning": "Manage Learning Hub",
   "manage:department-members": "Manage Department Members",
 };
 
@@ -160,6 +162,8 @@ export const PERMISSION_ACTION_DESCRIPTIONS: Record<PermissionAction, string> = 
     "Can choose which dataset backs each GIS map layer, rebuild the canonical ward table, and reconcile raw LGA/ward spellings.",
   "manage:indicators":
     "Can manage the canonical indicator registry (create/edit/activate), resolve pending indicator and org-unit aliases in the ingestion review queue, and run Stage 8 / calibration / AI admin tools.",
+  "manage:learning":
+    "Can create, edit, publish and delete Learning Hub guides, paths, videos, FAQs, glossary terms, templates and updates, and upload the screenshots and videos they use.",
   "manage:department-members":
     "Scoped, not platform-wide: can view/add/remove existing staff within department(s) the holder themselves belongs to. Cannot create new staff accounts or create/edit/delete departments themselves.",
 };
@@ -240,6 +244,10 @@ export const PERMISSION_ACTION_GROUPS: Array<{ label: string; actions: Permissio
   {
     label: "Indicators",
     actions: ["manage:indicators"],
+  },
+  {
+    label: "Learning Hub",
+    actions: ["manage:learning"],
   },
 ];
 

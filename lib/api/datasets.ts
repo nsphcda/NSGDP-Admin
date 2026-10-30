@@ -255,8 +255,13 @@ export async function deleteDataset(slug: string): Promise<void> {
  * Submit dataset for review
  */
 export async function submitDataset(slug: string): Promise<SubmitResponse> {
+  // The route is /submit-for-review; this used to call /submit, which does
+  // not exist. The portal header lets the backend link the receipt email to
+  // this portal, as it already does for create.
   const response = await apiClient.post<ApiResponse<SubmitResponse>>(
-    `/datasets/${slug}/submit`
+    `/datasets/${slug}/submit-for-review`,
+    {},
+    { headers: { 'X-NSGDP-Portal': 'admin' } }
   );
   return response.data.data;
 }

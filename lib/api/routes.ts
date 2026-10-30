@@ -49,7 +49,7 @@ export const API_ROUTES = {
     create: '/datasets',
     update: (slug: string) => `/datasets/${slug}`,
     delete: (slug: string) => `/datasets/${slug}`,
-    submit: (slug: string) => `/datasets/${slug}/submit`,
+    submit: (slug: string) => `/datasets/${slug}/submit-for-review`,
     download: (slug: string) => `/datasets/${slug}/download`,
     versions: (slug: string) => `/datasets/${slug}/versions`,
     preview: (slug: string) => `/datasets/${slug}/preview`,
