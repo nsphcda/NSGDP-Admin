@@ -34,6 +34,7 @@ import {
   tracksOutcomeMetric,
 } from "@/lib/constants/program-progress";
 import { LgaMultiSelect } from "@/components/admin/lga-multi-select";
+import { ProgrammePartnerPicker } from "@/components/admin/programme-partner-picker";
 import { RichTextEditor } from "@/components/admin/rich-text-editor";
 import {
   objectivesFromEditorHtml,
@@ -85,10 +86,16 @@ export function ProgramFormModal({ open, onClose, programme }: ProgramFormModalP
   const createMutation = useCreateProgram();
   const updateMutation = useUpdateProgram();
 
-  const { data: orgsData } = useDevelopmentPartners(1, 100);
-  const developmentPartners = orgsData?.data ?? [];
+  const [partnerIds, setPartnerIds] = useState<string[]>([]);
+  const { data: orgsData, isLoading: partnersLoading } = useDevelopmentPartners(1, 100);
+  const developmentPartners = useMemo(() => orgsData?.data ?? [], [orgsData?.data]);
   const agencyOrg = useMemo(
     () => developmentPartners.find((org) => org.is_platform_owner),
+    [developmentPartners],
+  );
+  // The agency owns every programme, so it is not offered as an assignable partner.
+  const assignablePartners = useMemo(
+    () => developmentPartners.filter((org) => !org.is_platform_owner),
     [developmentPartners],
   );
   const todayMin = useMemo(() => localDateInputValue(), []);
@@ -126,6 +133,7 @@ export function ProgramFormModal({ open, onClose, programme }: ProgramFormModalP
 
   useEffect(() => {
     if (open) {
+      setPartnerIds((programme?.partners ?? []).map((p) => p.id));
       const type = programme?.type ?? "campaign";
       reset({
         name: programme?.name ?? "",
@@ -176,6 +184,7 @@ export function ProgramFormModal({ open, onClose, programme }: ProgramFormModalP
         type: data.type,
         code: data.code || undefined,
         developmentPartnerId: isEditing ? (programme.development_partner_id ?? agencyOrg.id) : agencyOrg.id,
+        partnerIds,
         targetLgas: data.targetLgas,
         startDate: data.startDate,
         endDate: data.endDate,
@@ -346,6 +355,19 @@ export function ProgramFormModal({ open, onClose, programme }: ProgramFormModalP
               </div>
               <FormError message={errors.targetLgas?.message} />
             </div>
+          </div>
+
+          <div className="space-y-4 pt-4 border-t">
+            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+              Who runs it
+            </h3>
+            <ProgrammePartnerPicker
+              options={assignablePartners}
+              value={partnerIds}
+              onChange={setPartnerIds}
+              disabled={submitting}
+              loading={partnersLoading}
+            />
           </div>
 
           <div className="space-y-4 pt-4 border-t">

@@ -420,6 +420,14 @@ export default function ProgramDetailPage({ params }: { params: Promise<{ slug: 
             <InfoRow label="Type" value={program.type ? program.type.replace("-", " ") : "Not specified"} />
             <InfoRow label="Status" value={program.status} className="capitalize" />
             <InfoRow label="Programme Code" value={program.code || "Not assigned"} />
+            <InfoRow
+              label="Development Partners"
+              value={
+                program.partners && program.partners.length > 0
+                  ? program.partners.map((p) => p.name).join(", ")
+                  : "None assigned"
+              }
+            />
             <InfoRow label="Created" value={formatDate(program.created_at)} />
             <InfoRow label="Last Updated" value={formatDate(program.updated_at)} />
           </CardContent>

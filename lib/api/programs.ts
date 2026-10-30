@@ -29,6 +29,8 @@ export interface AdminProgramme {
   start_date: string | null;
   end_date: string | null;
   development_partner_id: string | null;
+  /** Development partners assigned to run this programme. */
+  partners?: Array<{ id: string; name: string; slug: string }>;
   manager_id: string | null;
   target_lgas: string[] | null;
   covered_lgas: string[] | null;
@@ -63,6 +65,8 @@ export interface CreateProgrammePayload {
   type?: ProgrammeType;
   code?: string;
   developmentPartnerId?: string;
+  /** Partners assigned to run the programme (agency only). */
+  partnerIds?: string[];
   managerId?: string;
   targetLgas?: string[];
   coveredLgas?: string[];
