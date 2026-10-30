@@ -256,3 +256,37 @@ export function formatDuration(totalSeconds: number): string {
   const sec = String(s % 60).padStart(2, "0");
   return h > 0 ? `${h}:${String(m).padStart(2, "0")}:${sec}` : `${m}:${sec}`;
 }
+
+/**
+ * A JPEG still from a local video, taken in the browser (same-origin blob, so the
+ * canvas is not tainted). Used as the video's poster so thumbnails load instantly
+ * instead of making the browser seek inside a large file.
+ */
+export function captureVideoFrame(file: File, atSeconds = 2): Promise<Blob | null> {
+  return new Promise((resolve) => {
+    const url = URL.createObjectURL(file);
+    const video = document.createElement("video");
+    video.muted = true;
+    video.preload = "auto";
+    const done = (blob: Blob | null) => {
+      URL.revokeObjectURL(url);
+      resolve(blob);
+    };
+    video.onerror = () => done(null);
+    video.onloadedmetadata = () => {
+      video.currentTime = Math.min(atSeconds, Math.max(0, video.duration / 2));
+    };
+    video.onseeked = () => {
+      const width = Math.min(960, video.videoWidth || 960);
+      const height = Math.round(((video.videoHeight || 540) / (video.videoWidth || 960)) * width);
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return done(null);
+      ctx.drawImage(video, 0, 0, width, height);
+      canvas.toBlob((blob) => done(blob), "image/jpeg", 0.82);
+    };
+    video.src = url;
+  });
+}

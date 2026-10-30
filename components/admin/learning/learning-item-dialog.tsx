@@ -22,8 +22,10 @@ import {
   LEARNING_AUDIENCES,
   LEARNING_ICONS,
   listLearning,
+  captureVideoFrame,
   formatDuration,
   readVideoDuration,
+  uploadLearningImage,
   updateLearning,
   type GuideCategory,
   type GuideData,
@@ -495,6 +497,21 @@ function ItemForm({
                         // Use the recording's real length, not a typed guess.
                         const seconds = await readVideoDuration(file);
                         if (seconds) set({ duration: formatDuration(seconds) });
+                        // And a small poster image, so the card thumbnail appears at once.
+                        if (!data.posterAssetId) {
+                          const frame = await captureVideoFrame(file);
+                          if (frame) {
+                            try {
+                              const poster = await uploadLearningImage(
+                                new File([frame], "video-poster.jpg", { type: "image/jpeg" }),
+                                "Video poster",
+                              );
+                              set({ posterAssetId: poster.id });
+                            } catch {
+                              // The poster is optional; the video itself is already attached.
+                            }
+                          }
+                        }
                       }}
                     />
                     {videos?.length ? (
