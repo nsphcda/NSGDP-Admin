@@ -46,7 +46,7 @@ function UploadButton({
   label: string;
   icon: typeof Upload;
   upload: (file: File, onProgress: (p: number) => void) => Promise<LearningAsset>;
-  onUploaded?: (asset: LearningAsset) => void;
+  onUploaded?: (asset: LearningAsset, file: File) => void;
 }) {
   const input = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
@@ -58,7 +58,7 @@ function UploadButton({
       const asset = await upload(file, setProgress);
       await queryClient.invalidateQueries({ queryKey: LEARNING_ASSETS_KEY });
       toast.success(`${file.name} uploaded`);
-      onUploaded?.(asset);
+      onUploaded?.(asset, file);
     } catch (e) {
       toast.error(errorMessage(e, "Upload failed"));
     } finally {
@@ -102,7 +102,7 @@ function UploadButton({
 export function UploadImageButton({
   onUploaded,
 }: {
-  onUploaded?: (asset: LearningAsset) => void;
+  onUploaded?: (asset: LearningAsset, file: File) => void;
 }) {
   return (
     <UploadButton
@@ -118,7 +118,7 @@ export function UploadImageButton({
 export function UploadVideoButton({
   onUploaded,
 }: {
-  onUploaded?: (asset: LearningAsset) => void;
+  onUploaded?: (asset: LearningAsset, file: File) => void;
 }) {
   return (
     <UploadButton
@@ -134,7 +134,7 @@ export function UploadVideoButton({
 export function UploadTemplateButton({
   onUploaded,
 }: {
-  onUploaded?: (asset: LearningAsset) => void;
+  onUploaded?: (asset: LearningAsset, file: File) => void;
 }) {
   return (
     <UploadButton

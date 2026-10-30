@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowDown, ArrowUp, Loader2, Plus, X } from "lucide-react";
+import { ArrowDown, ArrowUp, Loader2, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -22,6 +22,8 @@ import {
   LEARNING_AUDIENCES,
   LEARNING_ICONS,
   listLearning,
+  formatDuration,
+  readVideoDuration,
   updateLearning,
   type GuideCategory,
   type GuideData,
@@ -69,7 +71,6 @@ function defaults(kind: LearningKind): Data {
         description: "",
         duration: "0:00",
         category: "getting-started",
-        chapters: [],
         featured: false,
       };
     case "faq":
@@ -488,7 +489,14 @@ function ItemForm({
                     </div>
                   ) : null}
                   <div className="flex flex-wrap items-center gap-2">
-                    <UploadVideoButton onUploaded={(a) => set({ assetId: a.id })} />
+                    <UploadVideoButton
+                      onUploaded={async (a, file) => {
+                        set({ assetId: a.id });
+                        // Use the recording's real length, not a typed guess.
+                        const seconds = await readVideoDuration(file);
+                        if (seconds) set({ duration: formatDuration(seconds) });
+                      }}
+                    />
                     {videos?.length ? (
                       <NativeSelect
                         aria-label="Use an existing recording"
@@ -539,61 +547,6 @@ function ItemForm({
                 />
               </Field>
 
-              <Field label="Chapters">
-                <div className="space-y-2">
-                  {(data.chapters as Array<{ time: string; label: string }>).map((c, i) => (
-                    <div key={i} className="flex gap-2">
-                      <Input
-                        aria-label={`Chapter ${i + 1} time`}
-                        className="w-24"
-                        placeholder="0:00"
-                        value={c.time}
-                        onChange={(e) =>
-                          set({
-                            chapters: data.chapters.map((x: { time: string; label: string }, j: number) =>
-                              j === i ? { ...x, time: e.target.value } : x,
-                            ),
-                          })
-                        }
-                      />
-                      <Input
-                        aria-label={`Chapter ${i + 1} label`}
-                        placeholder="What happens here"
-                        value={c.label}
-                        onChange={(e) =>
-                          set({
-                            chapters: data.chapters.map((x: { time: string; label: string }, j: number) =>
-                              j === i ? { ...x, label: e.target.value } : x,
-                            ),
-                          })
-                        }
-                      />
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        aria-label="Remove chapter"
-                        onClick={() =>
-                          set({ chapters: data.chapters.filter((_: unknown, j: number) => j !== i) })
-                        }
-                      >
-                        <X className="size-4" aria-hidden />
-                      </Button>
-                    </div>
-                  ))}
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="gap-1.5"
-                    onClick={() => set({ chapters: [...data.chapters, { time: "", label: "" }] })}
-                  >
-                    <Plus className="size-3.5" aria-hidden />
-                    Add chapter
-                  </Button>
-                </div>
-              </Field>
-
               <MediaPicker
                 open={posterPicker}
                 onOpenChange={setPosterPicker}
@@ -628,11 +581,6 @@ function strip(kind: LearningKind, data: Data): Data {
   const out: Data = { ...data };
   for (const k of ["guide", "assetId", "posterAssetId", "externalUrl", "generatorKey"]) {
     if (out[k] === "" || out[k] == null) delete out[k];
-  }
-  if (kind === "video") {
-    out.chapters = (out.chapters as Array<{ time: string; label: string }>).filter(
-      (c) => c.time.trim() && c.label.trim(),
-    );
   }
   return out;
 }

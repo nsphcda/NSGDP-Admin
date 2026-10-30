@@ -230,3 +230,29 @@ export function assetUrl(path: string): string {
   const base = process.env.NEXT_PUBLIC_API_URL ?? "/api";
   return `${base}${path}`;
 }
+
+/** Real length of a local video file in seconds (reads the file's metadata, no upload). */
+export function readVideoDuration(file: File): Promise<number | null> {
+  return new Promise((resolve) => {
+    const url = URL.createObjectURL(file);
+    const video = document.createElement("video");
+    video.preload = "metadata";
+    const done = (value: number | null) => {
+      URL.revokeObjectURL(url);
+      resolve(value);
+    };
+    video.onloadedmetadata = () =>
+      done(Number.isFinite(video.duration) && video.duration > 0 ? video.duration : null);
+    video.onerror = () => done(null);
+    video.src = url;
+  });
+}
+
+/** 125 -> "2:05", 3725 -> "1:02:05" */
+export function formatDuration(totalSeconds: number): string {
+  const s = Math.round(totalSeconds);
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = String(s % 60).padStart(2, "0");
+  return h > 0 ? `${h}:${String(m).padStart(2, "0")}:${sec}` : `${m}:${sec}`;
+}
