@@ -1,4 +1,4 @@
-import { apiClient } from './client';
+import { apiClient, apiFetchBlobResponse } from './client';
 import { API_ROUTES } from './routes';
 import type { PaginatedResponse } from '../types/common';
 import type { Dataset as BackendDataset, DatasetStatus } from './datasets';
@@ -598,6 +598,65 @@ export async function bulkArchiveDatasets(
     payload,
   );
   return response.data.data;
+}
+
+/** Max datasets per bulk ZIP (must match BULK_DOWNLOAD_MAX_DATASETS in the backend). */
+export const BULK_DOWNLOAD_MAX_DATASETS = 25;
+
+export interface BulkDownloadSkipped {
+  slug: string;
+  reason: string;
+}
+
+export interface BulkDownloadResult {
+  blob: Blob;
+  fileName: string;
+  includedCount: number;
+  skipped: BulkDownloadSkipped[];
+}
+
+function parseSkippedHeader(value: string | null): BulkDownloadSkipped[] {
+  if (!value) return [];
+  try {
+    const parsed = JSON.parse(decodeURIComponent(value));
+    return Array.isArray(parsed) ? (parsed as BulkDownloadSkipped[]) : [];
+  } catch {
+    // Header is capped server-side; a truncated value is not valid JSON.
+    return [];
+  }
+}
+
+/**
+ * Download several datasets as one ZIP. The server decides per dataset what
+ * the caller may download (restricted datasets need access or the
+ * download:restricted permission; unpublished ones need a review
+ * permission) and reports the rest as skipped.
+ */
+export async function bulkDownloadDatasets(
+  slugs: string[],
+): Promise<BulkDownloadResult> {
+  const { blob, headers } = await apiFetchBlobResponse('/datasets/bulk-download', {
+    method: 'POST',
+    body: { slugs },
+  });
+  const disposition = headers.get('Content-Disposition') ?? '';
+  const included = Number(headers.get('X-Bulk-Included') ?? '0');
+  const skipped = parseSkippedHeader(headers.get('X-Bulk-Skipped-Details'));
+  const skippedCount = Number(headers.get('X-Bulk-Skipped') ?? '0');
+  return {
+    blob,
+    fileName:
+      /filename="?([^";]+)"?/i.exec(disposition)?.[1] ?? 'nsgdp-datasets.zip',
+    includedCount: Number.isFinite(included) ? included : 0,
+    // Details header can be truncated; fall back to the plain count.
+    skipped:
+      skipped.length > 0 || !skippedCount
+        ? skipped
+        : Array.from({ length: skippedCount }, () => ({
+            slug: '',
+            reason: 'Not available for download',
+          })),
+  };
 }
 
 /**
