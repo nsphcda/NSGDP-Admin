@@ -98,41 +98,79 @@ jobs:
     name: Deploy to Production
     runs-on: ubuntu-latest
     needs: [lint-and-build, security-scan]
-    # Disabled until production server is configured
-    if: false && github.ref == 'refs/heads/main' && github.event_name == 'push'
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    timeout-minutes: 30
+    # One deploy at a time; a newer push waits instead of cancelling a build
+    # that is half way through swapping the running container.
+    concurrency:
+      group: deploy-production-admin
+      cancel-in-progress: false
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Build Docker image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: ./Dockerfile
-          push: false
-          tags: nsgdp-admin:production
-          build-args: |
-            NEXT_PUBLIC_API_URL=${{ secrets.PROD_API_URL }}
-            NEXT_PUBLIC_APP_URL=${{ secrets.PROD_APP_URL }}
-            NEXT_PUBLIC_PORTAL_URL=${{ secrets.PROD_PORTAL_URL }}
-
       - name: Deploy to production server
-        uses: appleboy/ssh-action@master
-        with:
-          host: ${{ secrets.PROD_HOST }}
-          username: ${{ secrets.PROD_USER }}
-          key: ${{ secrets.PROD_SSH_KEY }}
-          script: |
-            cd /opt/nsgdp-admin
-            git pull origin main
-            docker-compose pull admin
-            docker-compose up -d admin
-            echo "Admin panel production deployment complete"
+        env:
+          PROD_HOST: ${{ secrets.PROD_HOST }}
+          PROD_USER: ${{ secrets.PROD_USER }}
+          PROD_SSH_KEY: ${{ secrets.PROD_SSH_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$PROD_SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "$PROD_HOST" >> ~/.ssh/known_hosts
+          # Keep the SSH session alive through the image build.
+          ssh -i ~/.ssh/deploy_key \
+            -o ServerAliveInterval=30 \
+            -o ServerAliveCountMax=120 \
+            -o TCPKeepAlive=yes \
+            "$PROD_USER@$PROD_HOST" \
+            "env DIR=/var/opt/NSGDP-Admin SERVICE=admin CONTAINER=nsgdp-admin-prod PORT=3002 IMAGE=nsgdp-admin bash -s" <<'REMOTE'
+          set -euo pipefail
+          cd "$DIR"
+          export DOCKER_BUILDKIT=1
+          COMPOSE="docker compose -f docker-compose.prod.yml"
 
-      - name: Notify deployment
-        if: success()
-        run: echo "Admin panel production deployment successful!"
+          echo "=== Disk ==="
+          df -h / | tail -1
+          AVAIL_KB=$(df -Pk / | tail -1 | awk '{print $4}')
+          if [ "$AVAIL_KB" -lt 2097152 ]; then
+            echo "ERROR: less than 2 GB free on / - aborting. Prune manually."
+            exit 1
+          fi
+
+          git fetch origin main
+          git reset --hard origin/main
+
+          # Keep the running image so a failed health check can roll back.
+          if docker image inspect "$IMAGE:prod" >/dev/null 2>&1; then
+            docker tag "$IMAGE:prod" "$IMAGE:prev"
+          fi
+
+          # Build first, at low priority, while the old container keeps serving.
+          # NEXT_PUBLIC_* values come from the server-side .env (compose reads it).
+          nice -n 19 $COMPOSE build
+
+          $COMPOSE up -d --no-deps --force-recreate "$SERVICE"
+
+          check() {
+            docker exec "$CONTAINER" node -e "require('http').get('http://127.0.0.1:$PORT/', r => process.exit(r.statusCode < 500 ? 0 : 1)).on('error', () => process.exit(1))"
+          }
+          ok=""
+          for i in $(seq 1 24); do
+            if check; then ok=1; echo "Healthy after attempt $i"; break; fi
+            sleep 5
+          done
+
+          if [ -z "$ok" ]; then
+            echo "New container did not become healthy. Recent logs:"
+            docker logs --tail 40 "$CONTAINER" || true
+            if docker image inspect "$IMAGE:prev" >/dev/null 2>&1; then
+              echo "Rolling back to previous image"
+              docker tag "$IMAGE:prev" "$IMAGE:prod"
+              $COMPOSE up -d --no-deps --force-recreate "$SERVICE"
+            fi
+            exit 1
+          fi
+
+          docker image prune -f || true
+          echo "Admin panel production deployment complete"
+          REMOTE
