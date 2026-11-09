@@ -1,0 +1,38 @@
+name: SSH deploy check (temporary)
+
+# Read-only connectivity test for the deploy secrets. Runs only on the
+# ci-autodeploy branch or manually. Delete before merging to main.
+on:
+  push:
+    branches: [ci-autodeploy]
+  workflow_dispatch:
+
+jobs:
+  ssh-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check SSH access and deploy prerequisites
+        env:
+          PROD_HOST: ${{ secrets.PROD_HOST }}
+          PROD_USER: ${{ secrets.PROD_USER }}
+          PROD_SSH_KEY: ${{ secrets.PROD_SSH_KEY }}
+        run: |
+          test -n "$PROD_HOST" || { echo "PROD_HOST secret is empty"; exit 1; }
+          test -n "$PROD_USER" || { echo "PROD_USER secret is empty"; exit 1; }
+          test -n "$PROD_SSH_KEY" || { echo "PROD_SSH_KEY secret is empty"; exit 1; }
+          mkdir -p ~/.ssh
+          echo "$PROD_SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "$PROD_HOST" >> ~/.ssh/known_hosts
+          ssh -i ~/.ssh/deploy_key -o BatchMode=yes "$PROD_USER@$PROD_HOST" "env DIR=/var/opt/NSGDP-Admin CONTAINER=nsgdp-admin-prod bash -s" <<'REMOTE'
+          set -u
+          echo "connected as $(whoami)@$(hostname)"
+          cd "$DIR" && echo "dir ok: $DIR"
+          test -f docker-compose.prod.yml && echo "compose file present"
+          test -f .env && echo ".env present"
+          docker compose -f docker-compose.prod.yml config -q && echo "compose config valid"
+          git fetch --dry-run origin main && echo "git fetch from GitHub ok"
+          docker inspect -f '{{.Name}} running={{.State.Running}}' "$CONTAINER"
+          df -h / | tail -1
+          REMOTE
