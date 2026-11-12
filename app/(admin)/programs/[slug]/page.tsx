@@ -13,6 +13,7 @@ import { useAdminAccess } from "@/lib/hooks/useAdminAccess";
 import { ProgramFormModal } from "@/components/admin/program-form-modal";
 import { ProgramProgressModal } from "@/components/admin/program-progress-modal";
 import { ProgramReportsCard } from "@/components/admin/program-reports-card";
+import { ProgramPhotosCard } from "@/components/admin/program-photos-card";
 import { HelpTip } from "@/components/admin/help-tip";
 import { RichHtmlContent } from "@/components/admin/rich-html-content";
 import { objectivesToEditorHtml } from "@/lib/objectives-html";
@@ -399,6 +400,8 @@ export default function ProgramDetailPage({ params }: { params: Promise<{ slug: 
           )}
         </CardContent>
       </Card>
+
+      <ProgramPhotosCard slug={program.slug} canEdit={canEdit || canEditProgress} />
 
       <ProgramReportsCard
         slug={program.slug}

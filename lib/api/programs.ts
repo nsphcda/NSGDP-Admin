@@ -1,4 +1,4 @@
-import { apiClient } from './client';
+import { apiClient, apiUpload } from './client';
 import type { ApiResponse, PaginatedResponse } from '../types/common';
 import type { AdminDocument } from './documents';
 
@@ -17,6 +17,92 @@ export type ProgrammeProgressMode =
   | 'lga_coverage'
   | 'outcome_metric'
   | 'combined';
+
+/** A photo in a programme's gallery. URLs are ready to use in <img>. */
+export interface ProgrammeImage {
+  id: string;
+  caption: string | null;
+  alt: string | null;
+  width: number;
+  height: number;
+  isCover: boolean;
+  sortOrder: number;
+  url: string;
+  thumbUrl: string;
+}
+
+interface ProgrammeImagePayload {
+  id: string;
+  caption: string | null;
+  alt: string | null;
+  width: number;
+  height: number;
+  is_cover: boolean;
+  sort_order: number;
+  url: string;
+  thumb_url: string;
+}
+
+const MEDIA_BASE = process.env.NEXT_PUBLIC_API_URL ?? '/api';
+
+function mapImage(raw: ProgrammeImagePayload): ProgrammeImage {
+  const abs = (path: string) => (/^https?:\/\//i.test(path) ? path : `${MEDIA_BASE}${path}`);
+  return {
+    id: raw.id,
+    caption: raw.caption,
+    alt: raw.alt,
+    width: raw.width,
+    height: raw.height,
+    isCover: raw.is_cover,
+    sortOrder: raw.sort_order,
+    url: abs(raw.url),
+    thumbUrl: abs(raw.thumb_url),
+  };
+}
+
+export async function getProgrammeImages(slug: string): Promise<ProgrammeImage[]> {
+  const response = await apiClient.get<ApiResponse<ProgrammeImagePayload[]>>(
+    `/programs/${slug}/images`
+  );
+  return response.data.data.map(mapImage);
+}
+
+export async function uploadProgrammeImage(slug: string, file: File): Promise<ProgrammeImage> {
+  const form = new FormData();
+  form.append('file', file);
+  const response = await apiUpload<ApiResponse<ProgrammeImagePayload>>(
+    `/programs/${slug}/images`,
+    form
+  );
+  return mapImage(response.data);
+}
+
+export async function updateProgrammeImage(
+  slug: string,
+  imageId: string,
+  data: { caption?: string; alt?: string; isCover?: boolean }
+): Promise<ProgrammeImage> {
+  const response = await apiClient.patch<ApiResponse<ProgrammeImagePayload>>(
+    `/programs/${slug}/images/${imageId}`,
+    data
+  );
+  return mapImage(response.data.data);
+}
+
+export async function reorderProgrammeImages(
+  slug: string,
+  ids: string[]
+): Promise<ProgrammeImage[]> {
+  const response = await apiClient.put<ApiResponse<ProgrammeImagePayload[]>>(
+    `/programs/${slug}/images/order`,
+    { ids }
+  );
+  return response.data.data.map(mapImage);
+}
+
+export async function deleteProgrammeImage(slug: string, imageId: string): Promise<void> {
+  await apiClient.delete(`/programs/${slug}/images/${imageId}`);
+}
 
 export interface AdminProgramme {
   id: string;

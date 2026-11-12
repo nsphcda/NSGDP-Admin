@@ -8,6 +8,11 @@ import {
   getProgrammeReports,
   createProgrammeReport,
   deleteProgrammeReport,
+  getProgrammeImages,
+  uploadProgrammeImage,
+  updateProgrammeImage,
+  reorderProgrammeImages,
+  deleteProgrammeImage,
   type CreateProgrammeReportPayload,
   type CreateProgrammePayload,
   type UpdateProgrammePayload,
@@ -28,6 +33,45 @@ export function useProgramBySlug(slug: string) {
     queryFn: () => getProgrammeBySlug(slug),
     enabled: !!slug,
   });
+}
+
+export function useProgramImages(slug: string) {
+  return useQuery({
+    queryKey: ['programme-images', slug],
+    queryFn: () => getProgrammeImages(slug),
+    enabled: !!slug,
+  });
+}
+
+/** Photo actions for one programme; each refreshes the gallery and the programme lists. */
+export function useProgramImageActions(slug: string) {
+  const queryClient = useQueryClient();
+  const refresh = () => {
+    queryClient.invalidateQueries({ queryKey: ['programme-images', slug] });
+    queryClient.invalidateQueries({ queryKey: ['programme', slug] });
+    queryClient.invalidateQueries({ queryKey: ['programmes'] });
+  };
+  return {
+    upload: useMutation({
+      mutationFn: (file: File) => uploadProgrammeImage(slug, file),
+      onSuccess: refresh,
+    }),
+    update: useMutation({
+      mutationFn: (v: {
+        imageId: string;
+        data: { caption?: string; alt?: string; isCover?: boolean };
+      }) => updateProgrammeImage(slug, v.imageId, v.data),
+      onSuccess: refresh,
+    }),
+    reorder: useMutation({
+      mutationFn: (ids: string[]) => reorderProgrammeImages(slug, ids),
+      onSuccess: refresh,
+    }),
+    remove: useMutation({
+      mutationFn: (imageId: string) => deleteProgrammeImage(slug, imageId),
+      onSuccess: refresh,
+    }),
+  };
 }
 
 export function useCreateProgram() {
