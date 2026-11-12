@@ -138,7 +138,7 @@ export async function reorderLearning(kind: LearningKind, ids: string[]) {
 }
 
 export async function seedLearningDefaults() {
-  const res = await apiClient.post<Envelope<{ inserted: number; skipped: number; failed: string[] }>>(
+  const res = await apiClient.post<Envelope<{ inserted: number; skipped: number; failed: string[]; imagesAttached?: number }>>(
     `${BASE}/seed`,
   );
   return res.data.data;

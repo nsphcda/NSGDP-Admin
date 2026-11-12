@@ -29,10 +29,12 @@ export default function LearningAdminPage() {
     mutationFn: seedLearningDefaults,
     onSuccess: (r) => {
       void queryClient.invalidateQueries({ queryKey: ["admin", "learning"] });
+      const shots = r.imagesAttached ?? 0;
+      const shotsText = shots > 0 ? `, ${shots} screenshot${shots === 1 ? "" : "s"} attached` : "";
       toast.success(
-        r.inserted > 0
-          ? `Imported ${r.inserted} built-in items (${r.skipped} already existed)`
-          : "Nothing to import: all built-in items already exist",
+        r.inserted > 0 || shots > 0
+          ? `Imported ${r.inserted} built-in items (${r.skipped} already existed)${shotsText}`
+          : "Nothing to import: all built-in items and screenshots already exist",
       );
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Import failed"),
