@@ -149,7 +149,9 @@ export function PipelineTab() {
     onSettled: () => setRetryingId(null),
     onSuccess: (result) => {
       if (result.action === "enqueued") {
-        toast.success("Ingestion enqueued — switch to Running to track progress");
+        toast.success(
+          "Ingestion enqueued — switch to Running to track progress",
+        );
         setView("running");
       } else if (result.action === "already_queued") {
         toast.info("Ingestion is already queued");
@@ -161,13 +163,11 @@ export function PipelineTab() {
       // The worker may take a beat to claim the job — nudge the in-flight list
       // a couple more times so it appears without waiting for the poll.
       window.setTimeout(
-        () =>
-          queryClient.invalidateQueries({ queryKey: [IN_FLIGHT_JOBS_KEY] }),
+        () => queryClient.invalidateQueries({ queryKey: [IN_FLIGHT_JOBS_KEY] }),
         2000,
       );
       window.setTimeout(
-        () =>
-          queryClient.invalidateQueries({ queryKey: [IN_FLIGHT_JOBS_KEY] }),
+        () => queryClient.invalidateQueries({ queryKey: [IN_FLIGHT_JOBS_KEY] }),
         5000,
       );
     },
@@ -294,7 +294,10 @@ export function PipelineTab() {
           <div className="flex flex-col items-end gap-2">
             <div className="flex flex-wrap gap-1 rounded-lg border bg-muted/40 p-1">
               {VIEW_OPTIONS.map((opt) => (
-                <div key={opt.value} className="inline-flex items-center gap-0.5">
+                <div
+                  key={opt.value}
+                  className="inline-flex items-center gap-0.5"
+                >
                   <Button
                     size="sm"
                     variant={view === opt.value ? "secondary" : "ghost"}
@@ -322,7 +325,10 @@ export function PipelineTab() {
               aria-hidden={!isAttentionView}
             >
               {ATTENTION_SUBFILTERS.map((opt) => (
-                <div key={opt.value} className="inline-flex items-center gap-0.5">
+                <div
+                  key={opt.value}
+                  className="inline-flex items-center gap-0.5"
+                >
                   <Button
                     size="sm"
                     variant={
@@ -347,120 +353,241 @@ export function PipelineTab() {
             activeQuery.isFetching && !isLoading && "opacity-60",
           )}
         >
-        {isLoading ? (
-          <Skeleton className="h-64 rounded-xl" />
-        ) : isRunningView ? (
-          !runningQuery.data?.length ? (
-            <EmptyState
-              title="Nothing queued or running"
-              description="When datasets are submitted for review or catch-up is run, active canonicalization jobs appear here."
-            />
-          ) : (
-            <DataTableShell>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Dataset</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Stage</TableHead>
-                    <TableHead className="text-right">Progress</TableHead>
-                    <TableHead>Queued</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {runningQuery.data.map((job) => {
-                    const pct = Math.min(100, Math.max(0, job.progress ?? 0));
-                    const stage =
-                      job.steps.find((s) => s.status === "running")?.label ??
-                      (job.status === "pending"
-                        ? "Waiting for worker"
-                        : "—");
-                    const href = job.datasetSlug
-                      ? `/datasets/${job.datasetSlug}/ingestion`
-                      : null;
+          {isLoading ? (
+            <Skeleton className="h-64 rounded-xl" />
+          ) : isRunningView ? (
+            !runningQuery.data?.length ? (
+              <EmptyState
+                title="Nothing queued or running"
+                description="When datasets are submitted for review or catch-up is run, active canonicalization jobs appear here."
+              />
+            ) : (
+              <DataTableShell>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Dataset</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Stage</TableHead>
+                      <TableHead className="text-right">Progress</TableHead>
+                      <TableHead>Queued</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {runningQuery.data.map((job) => {
+                      const pct = Math.min(100, Math.max(0, job.progress ?? 0));
+                      const stage =
+                        job.steps.find((s) => s.status === "running")?.label ??
+                        (job.status === "pending" ? "Waiting for worker" : "—");
+                      const href = job.datasetSlug
+                        ? `/datasets/${job.datasetSlug}/ingestion`
+                        : null;
 
-                    return (
-                      <TableRow key={job.jobId}>
-                        <TableCell className="max-w-70">
-                          {href ? (
-                            <Link
-                              href={href}
-                              className="font-medium text-primary underline-offset-4 hover:underline"
+                      return (
+                        <TableRow key={job.jobId}>
+                          <TableCell className="max-w-70">
+                            {href ? (
+                              <Link
+                                href={href}
+                                className="font-medium text-primary underline-offset-4 hover:underline"
+                              >
+                                {job.datasetTitle ??
+                                  job.datasetId ??
+                                  "Unknown dataset"}
+                              </Link>
+                            ) : (
+                              <span className="font-medium">
+                                {job.datasetTitle ??
+                                  job.datasetId ??
+                                  "Unknown dataset"}
+                              </span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <Badge
+                              variant="outline"
+                              className={cn(
+                                "gap-1.5 text-[10px] uppercase",
+                                job.status === "processing" &&
+                                  "border-info/30 bg-info/10 text-info",
+                                job.status === "pending" &&
+                                  "border-warning/30 bg-warning/10 text-amber-700 dark:text-warning",
+                              )}
                             >
-                              {job.datasetTitle ??
-                                job.datasetId ??
-                                "Unknown dataset"}
-                            </Link>
-                          ) : (
-                            <span className="font-medium">
-                              {job.datasetTitle ??
-                                job.datasetId ??
-                                "Unknown dataset"}
-                            </span>
+                              {(job.status === "processing" ||
+                                job.status === "validating") && (
+                                <Loader2
+                                  className="size-3 animate-spin"
+                                  aria-hidden
+                                />
+                              )}
+                              {jobStatusLabel(job.status)}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-[13px] text-muted-foreground">
+                            {stage}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="ml-auto flex w-28 flex-col items-end gap-1">
+                              <span className="text-xs font-semibold tabular-nums">
+                                {pct}%
+                              </span>
+                              <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                                <div
+                                  className={cn(
+                                    "h-full rounded-full transition-[width] duration-500",
+                                    job.status === "processing"
+                                      ? "bg-info"
+                                      : "bg-primary",
+                                    job.status === "pending" &&
+                                      pct === 0 &&
+                                      "min-w-1",
+                                  )}
+                                  style={{
+                                    width: `${job.status === "pending" && pct === 0 ? 4 : pct}%`,
+                                  }}
+                                />
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-[13px] text-muted-foreground">
+                            {formatDate(job.createdAt)}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </DataTableShell>
+            )
+          ) : isCompletedView ? (
+            !completedQuery.data?.items.length ? (
+              <EmptyState
+                title="Nothing completed yet"
+                description="Datasets appear here once their canonicalization run finishes — ready for review, published, or retracted."
+              />
+            ) : (
+              <DataTableShell>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Dataset</TableHead>
+                      <TableHead>Development Partner</TableHead>
+                      <TableHead>Ingestion status</TableHead>
+                      <TableHead>Last run</TableHead>
+                      <TableHead>Warehouse</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {completedQuery.data.items.map((row) => (
+                      <TableRow key={row.datasetId}>
+                        <TableCell className="max-w-70">
+                          <Link
+                            href={`/datasets/${row.slug}/ingestion`}
+                            className="font-medium text-primary underline-offset-4 hover:underline"
+                          >
+                            {row.title}
+                          </Link>
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">
+                          {orgLabel(
+                            row.organisationName,
+                            row.organisationAcronym,
                           )}
                         </TableCell>
                         <TableCell>
                           <Badge
                             variant="outline"
                             className={cn(
-                              "gap-1.5 text-[10px] uppercase",
-                              job.status === "processing" &&
-                                "border-info/30 bg-info/10 text-info",
-                              job.status === "pending" &&
-                                "border-warning/30 bg-warning/10 text-amber-700 dark:text-warning",
+                              "gap-1.5",
+                              row.ingestionStatus === "published" &&
+                                "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
+                              row.ingestionStatus === "retracted" &&
+                                "border-amber-500/30 bg-amber-500/10 text-amber-800 dark:text-amber-200",
                             )}
                           >
-                            {(job.status === "processing" ||
-                              job.status === "validating") && (
-                              <Loader2
-                                className="size-3 animate-spin"
-                                aria-hidden
-                              />
-                            )}
-                            {jobStatusLabel(job.status)}
+                            <CheckCircle2 className="size-3" aria-hidden />
+                            {INGESTION_STATUS_LABEL[
+                              row.ingestionStatus as IngestionStatus
+                            ] ?? row.ingestionStatus}
                           </Badge>
                         </TableCell>
-                        <TableCell className="text-[13px] text-muted-foreground">
-                          {stage}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="ml-auto flex w-28 flex-col items-end gap-1">
-                            <span className="text-xs font-semibold tabular-nums">
-                              {pct}%
-                            </span>
-                            <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
-                              <div
-                                className={cn(
-                                  "h-full rounded-full transition-[width] duration-500",
-                                  job.status === "processing"
-                                    ? "bg-info"
-                                    : "bg-primary",
-                                  job.status === "pending" &&
-                                    pct === 0 &&
-                                    "min-w-1",
-                                )}
-                                style={{
-                                  width: `${job.status === "pending" && pct === 0 ? 4 : pct}%`,
-                                }}
-                              />
-                            </div>
+                        <TableCell className="text-sm text-muted-foreground">
+                          <div className="space-y-0.5">
+                            {row.lastJobStage ? (
+                              <p className="capitalize">{row.lastJobStage}</p>
+                            ) : null}
+                            {row.lastJobAt ? (
+                              <p className="text-xs">
+                                {formatDate(row.lastJobAt)}
+                              </p>
+                            ) : (
+                              "—"
+                            )}
                           </div>
                         </TableCell>
-                        <TableCell className="text-[13px] text-muted-foreground">
-                          {formatDate(job.createdAt)}
+                        <TableCell className="text-sm">
+                          {row.analyticsPublishedAt ? (
+                            <span className="text-emerald-700 dark:text-emerald-300">
+                              Loaded {formatDate(row.analyticsPublishedAt)}
+                            </span>
+                          ) : row.warehouseEligible ? (
+                            <span className="text-amber-800 dark:text-amber-200">
+                              Ready to load
+                            </span>
+                          ) : (
+                            <div className="space-y-0.5 text-muted-foreground">
+                              <p>
+                                {row.pendingAliases === 0 &&
+                                row.publishableRows === 0 &&
+                                row.fitnessVerdict !== "rejected_unusable" &&
+                                row.catalogueStatus === "approved"
+                                  ? "Nothing to load"
+                                  : "Not ready"}
+                              </p>
+                              <p className="text-xs">
+                                {row.pendingAliases > 0
+                                  ? `${row.pendingAliases.toLocaleString()} alias decision${row.pendingAliases === 1 ? "" : "s"} pending`
+                                  : row.fitnessVerdict === "rejected_unusable"
+                                    ? "not an analytics grid"
+                                    : row.catalogueStatus !== "approved"
+                                      ? "awaiting catalogue approval"
+                                      : row.publishableRows === 0
+                                        ? "no indicator values in this file, nothing to fix"
+                                        : `${row.publishableRows.toLocaleString()} resolvable rows`}
+                              </p>
+                            </div>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex justify-end gap-1">
+                            <Link
+                              href={`/datasets/${row.slug}`}
+                              className="inline-flex size-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+                            >
+                              <FileText className="size-3.5" />
+                              <span className="sr-only">Open dataset page</span>
+                            </Link>
+                            <Link
+                              href={`/datasets/${row.slug}/ingestion`}
+                              className="inline-flex size-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+                            >
+                              <ExternalLink className="size-3.5" />
+                              <span className="sr-only">Open ingestion</span>
+                            </Link>
+                          </div>
                         </TableCell>
                       </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </DataTableShell>
-          )
-        ) : isCompletedView ? (
-          !completedQuery.data?.items.length ? (
+                    ))}
+                  </TableBody>
+                </Table>
+              </DataTableShell>
+            )
+          ) : !attentionQuery.data?.items.length ? (
             <EmptyState
-              title="Nothing completed yet"
-              description="Datasets appear here once their canonicalization run finishes — ready for review, published, or retracted."
+              title="No ingestion issues"
+              description="Failed or incomplete canonicalization jobs appear here. Running jobs stay under Running."
             />
           ) : (
             <DataTableShell>
@@ -469,264 +596,148 @@ export function PipelineTab() {
                   <TableRow>
                     <TableHead>Dataset</TableHead>
                     <TableHead>Development Partner</TableHead>
-                    <TableHead>Ingestion status</TableHead>
-                    <TableHead>Last run</TableHead>
-                    <TableHead>Warehouse</TableHead>
+                    <TableHead>Issue</TableHead>
+                    <TableHead>Last job</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {completedQuery.data.items.map((row) => (
-                    <TableRow key={row.datasetId}>
-                      <TableCell className="max-w-70">
-                        <Link
-                          href={`/datasets/${row.slug}/ingestion`}
-                          className="font-medium text-primary underline-offset-4 hover:underline"
-                        >
-                          {row.title}
-                        </Link>
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {orgLabel(
-                          row.organisationName,
-                          row.organisationAcronym,
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <Badge
-                          variant="outline"
-                          className={cn(
-                            "gap-1.5",
-                            row.ingestionStatus === "published" &&
-                              "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
-                            row.ingestionStatus === "retracted" &&
-                              "border-amber-500/30 bg-amber-500/10 text-amber-800 dark:text-amber-200",
-                          )}
-                        >
-                          <CheckCircle2 className="size-3" aria-hidden />
-                          {INGESTION_STATUS_LABEL[
-                            row.ingestionStatus as IngestionStatus
-                          ] ?? row.ingestionStatus}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
-                        <div className="space-y-0.5">
-                          {row.lastJobStage ? (
-                            <p className="capitalize">{row.lastJobStage}</p>
-                          ) : null}
-                          {row.lastJobAt ? (
-                            <p className="text-xs">
-                              {formatDate(row.lastJobAt)}
-                            </p>
-                          ) : (
-                            "—"
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-sm">
-                        {row.analyticsPublishedAt ? (
-                          <span className="text-emerald-700 dark:text-emerald-300">
-                            Loaded {formatDate(row.analyticsPublishedAt)}
-                          </span>
-                        ) : row.warehouseEligible ? (
-                          <span className="text-amber-800 dark:text-amber-200">
-                            Ready to load
-                          </span>
-                        ) : (
-                          <div className="space-y-0.5 text-muted-foreground">
-                            <p>Not ready</p>
-                            <p className="text-xs">
-                              {row.pendingAliases > 0
-                                ? `${row.pendingAliases.toLocaleString()} alias decision${row.pendingAliases === 1 ? "" : "s"} pending`
-                                : row.fitnessVerdict === "rejected_unusable"
-                                  ? "not an analytics grid"
-                                  : row.catalogueStatus !== "approved"
-                                    ? "awaiting catalogue approval"
-                                    : row.publishableRows === 0
-                                      ? "0 resolvable rows — resolve aliases / org units first"
-                                      : `${row.publishableRows.toLocaleString()} resolvable rows`}
-                            </p>
-                          </div>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex justify-end gap-1">
-                          <Link
-                            href={`/datasets/${row.slug}`}
-                            className="inline-flex size-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
-                          >
-                            <FileText className="size-3.5" />
-                            <span className="sr-only">Open dataset page</span>
-                          </Link>
-                          <Link
-                            href={`/datasets/${row.slug}/ingestion`}
-                            className="inline-flex size-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
-                          >
-                            <ExternalLink className="size-3.5" />
-                            <span className="sr-only">Open ingestion</span>
-                          </Link>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </DataTableShell>
-          )
-        ) : !attentionQuery.data?.items.length ? (
-          <EmptyState
-            title="No ingestion issues"
-            description="Failed or incomplete canonicalization jobs appear here. Running jobs stay under Running."
-          />
-        ) : (
-          <DataTableShell>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Dataset</TableHead>
-                  <TableHead>Development Partner</TableHead>
-                  <TableHead>Issue</TableHead>
-                  <TableHead>Last job</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {attentionQuery.data.items.map((row) => {
-                  const isRetrying = retryingId === row.datasetId;
-                  return (
-                    <TableRow key={row.datasetId}>
-                      <TableCell>
-                        <div className="space-y-1">
-                          <Link
-                            href={`/datasets/${row.slug}/ingestion`}
-                            className="font-medium hover:underline"
-                          >
-                            {row.title}
-                          </Link>
-                          {row.lastJobError ? (
-                            <p className="max-w-sm truncate text-xs text-destructive">
-                              {row.lastJobError}
-                            </p>
-                          ) : row.blockReason ? (
-                            <p className="max-w-sm truncate text-xs text-muted-foreground">
-                              {row.blockReason}
-                            </p>
-                          ) : null}
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {orgLabel(
-                          row.organisationName,
-                          row.organisationAcronym,
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex flex-col gap-1">
-                          <Badge
-                            variant="outline"
-                            className={cn(
-                              "w-fit",
-                              kindBadgeClass(row.attentionKind),
-                            )}
-                          >
-                            {KIND_LABEL[row.attentionKind]}
-                          </Badge>
-                          <span className="text-xs text-muted-foreground">
-                            {INGESTION_STATUS_LABEL[
-                              row.ingestionStatus as IngestionStatus
-                            ] ?? row.ingestionStatus}
-                          </span>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {row.lastJobStatus ? (
-                          <div className="space-y-0.5">
-                            <p className="capitalize">{row.lastJobStatus}</p>
-                            {row.lastJobStage ? (
-                              <p className="text-xs">{row.lastJobStage}</p>
-                            ) : null}
-                            {row.lastJobAt ? (
-                              <p className="text-xs">
-                                {formatDate(row.lastJobAt)}
+                  {attentionQuery.data.items.map((row) => {
+                    const isRetrying = retryingId === row.datasetId;
+                    return (
+                      <TableRow key={row.datasetId}>
+                        <TableCell>
+                          <div className="space-y-1">
+                            <Link
+                              href={`/datasets/${row.slug}/ingestion`}
+                              className="font-medium hover:underline"
+                            >
+                              {row.title}
+                            </Link>
+                            {row.lastJobError ? (
+                              <p className="max-w-sm truncate text-xs text-destructive">
+                                {row.lastJobError}
+                              </p>
+                            ) : row.blockReason ? (
+                              <p className="max-w-sm truncate text-xs text-muted-foreground">
+                                {row.blockReason}
                               </p>
                             ) : null}
                           </div>
-                        ) : (
-                          "—"
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex justify-end gap-1">
-                          <Link
-                            href={`/datasets/${row.slug}/ingestion`}
-                            className="inline-flex size-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
-                          >
-                            <ExternalLink className="size-3.5" />
-                            <span className="sr-only">Open ingestion</span>
-                          </Link>
-                          {row.canRetry ? (
-                            <Button
-                              size="sm"
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">
+                          {orgLabel(
+                            row.organisationName,
+                            row.organisationAcronym,
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex flex-col gap-1">
+                            <Badge
                               variant="outline"
-                              disabled={isRetrying}
-                              onClick={() =>
-                                retryMutation.mutate({
-                                  datasetId: row.datasetId,
-                                  // A failed run can leave a completed job row
-                                  // holding the file's idempotency key — force
-                                  // so the retry actually re-enqueues.
-                                  force: row.attentionKind === "failed",
-                                })
-                              }
-                            >
-                              {isRetrying ? (
-                                <Loader2 className="size-3.5 animate-spin" />
-                              ) : (
-                                <RotateCcw className="size-3.5" />
+                              className={cn(
+                                "w-fit",
+                                kindBadgeClass(row.attentionKind),
                               )}
-                              Retry
-                            </Button>
-                          ) : null}
-                          {row.canForceRetry ? (
-                            <Button
-                              size="sm"
-                              variant="secondary"
-                              disabled={isRetrying}
-                              onClick={() =>
-                                retryMutation.mutate({
-                                  datasetId: row.datasetId,
-                                  force: true,
-                                })
-                              }
                             >
-                              Force re-run
-                            </Button>
-                          ) : null}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </DataTableShell>
-        )}
-        {isAttentionView &&
-        attentionQuery.data &&
-        attentionQuery.data.total > attentionQuery.data.items.length ? (
-          <p className="mt-3 text-xs text-muted-foreground">
-            Showing {attentionQuery.data.items.length} of{" "}
-            {attentionQuery.data.total} datasets.
-          </p>
-        ) : null}
-        {isCompletedView &&
-        completedQuery.data &&
-        completedQuery.data.total > completedQuery.data.items.length ? (
-          <p className="mt-3 text-xs text-muted-foreground">
-            Showing {completedQuery.data.items.length} of{" "}
-            {completedQuery.data.total} datasets.
-          </p>
-        ) : null}
+                              {KIND_LABEL[row.attentionKind]}
+                            </Badge>
+                            <span className="text-xs text-muted-foreground">
+                              {INGESTION_STATUS_LABEL[
+                                row.ingestionStatus as IngestionStatus
+                              ] ?? row.ingestionStatus}
+                            </span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">
+                          {row.lastJobStatus ? (
+                            <div className="space-y-0.5">
+                              <p className="capitalize">{row.lastJobStatus}</p>
+                              {row.lastJobStage ? (
+                                <p className="text-xs">{row.lastJobStage}</p>
+                              ) : null}
+                              {row.lastJobAt ? (
+                                <p className="text-xs">
+                                  {formatDate(row.lastJobAt)}
+                                </p>
+                              ) : null}
+                            </div>
+                          ) : (
+                            "—"
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex justify-end gap-1">
+                            <Link
+                              href={`/datasets/${row.slug}/ingestion`}
+                              className="inline-flex size-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+                            >
+                              <ExternalLink className="size-3.5" />
+                              <span className="sr-only">Open ingestion</span>
+                            </Link>
+                            {row.canRetry ? (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                disabled={isRetrying}
+                                onClick={() =>
+                                  retryMutation.mutate({
+                                    datasetId: row.datasetId,
+                                    // A failed run can leave a completed job row
+                                    // holding the file's idempotency key — force
+                                    // so the retry actually re-enqueues.
+                                    force: row.attentionKind === "failed",
+                                  })
+                                }
+                              >
+                                {isRetrying ? (
+                                  <Loader2 className="size-3.5 animate-spin" />
+                                ) : (
+                                  <RotateCcw className="size-3.5" />
+                                )}
+                                Retry
+                              </Button>
+                            ) : null}
+                            {row.canForceRetry ? (
+                              <Button
+                                size="sm"
+                                variant="secondary"
+                                disabled={isRetrying}
+                                onClick={() =>
+                                  retryMutation.mutate({
+                                    datasetId: row.datasetId,
+                                    force: true,
+                                  })
+                                }
+                              >
+                                Force re-run
+                              </Button>
+                            ) : null}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </DataTableShell>
+          )}
+          {isAttentionView &&
+          attentionQuery.data &&
+          attentionQuery.data.total > attentionQuery.data.items.length ? (
+            <p className="mt-3 text-xs text-muted-foreground">
+              Showing {attentionQuery.data.items.length} of{" "}
+              {attentionQuery.data.total} datasets.
+            </p>
+          ) : null}
+          {isCompletedView &&
+          completedQuery.data &&
+          completedQuery.data.total > completedQuery.data.items.length ? (
+            <p className="mt-3 text-xs text-muted-foreground">
+              Showing {completedQuery.data.items.length} of{" "}
+              {completedQuery.data.total} datasets.
+            </p>
+          ) : null}
         </div>
       </Panel>
     </div>
