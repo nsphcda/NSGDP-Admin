@@ -46,6 +46,7 @@ import { AnalyticsWarehouseTab } from "@/components/admin/analytics-warehouse-ta
 import { PipelineTab } from "@/components/admin/pipeline-tab";
 import { IngestionMetricsTab } from "@/components/admin/ingestion-metrics-tab";
 import { IngestionOpsTabsNav } from "@/components/admin/ingestion-ops-tabs-nav";
+import { useAfterDelay } from "@/lib/hooks/useStaggeredEnable";
 import {
   IngestionOpsGuideButton,
 } from "@/components/admin/ingestion-ops-help-panel";
@@ -476,13 +477,16 @@ export default function IngestionOpsPage() {
     const qs = params.toString();
     router.replace(qs ? `/ingestion-ops?${qs}` : "/ingestion-ops");
   };
+  // Only the tab badges use these two lists, so they start a moment after the page's own
+  // requests instead of in the same burst.
+  const badgeCountsReady = useAfterDelay(1500);
   const { data: globalAliases } = useReviewQueue(undefined, {
     global: true,
     limit: 200,
-    enabled: canView,
+    enabled: canView && badgeCountsReady,
   });
   const { data: conflictSummaries } = useConflictDatasetSummaries({
-    enabled: canView,
+    enabled: canView && badgeCountsReady,
   });
   const pendingAliasCount = globalAliases?.length ?? 0;
   const openConflictCount =
