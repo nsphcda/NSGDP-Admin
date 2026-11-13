@@ -13,6 +13,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { PageEyebrow } from "@/components/admin/admin-analytics-ui";
 import { useAdminAccess } from "@/lib/hooks/useAdminAccess";
 import {
+  applyDictionary,
   getDataSeedPlan,
   getDataSeedStatus,
   startDataSeed,
@@ -117,6 +118,15 @@ export default function DataSeedPage() {
   });
 
   const run = status.data ?? null;
+
+  const dictionary = useMutation({
+    mutationFn: applyDictionary,
+    onSuccess: (r) => {
+      void queryClient.invalidateQueries({ queryKey: ["ingestion-ops"] });
+      toast.success(`Dictionary v${r.dictionaryVersion} applied`);
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Could not apply the dictionary"),
+  });
   const running = run?.state === "running";
 
   const start = useMutation({
@@ -274,12 +284,30 @@ export default function DataSeedPage() {
               )}
               {running ? "Import running…" : `Run import (${toDo.length} to do)`}
             </Button>
+            <Button
+              size="lg"
+              variant="outline"
+              disabled={running || dictionary.isPending}
+              onClick={() => dictionary.mutate()}
+            >
+              {dictionary.isPending ? <Loader2 className="size-4 animate-spin" /> : null}
+              Update indicator dictionary only
+            </Button>
             {toDo.length === 0 && !plan.isLoading ? (
               <span className="text-sm text-muted-foreground">
                 Everything in this selection is already on the server.
               </span>
             ) : null}
           </div>
+          {dictionary.data ? (
+            <p className="rounded-lg border p-3 text-sm">
+              <span className="font-medium">Indicator dictionary v{dictionary.data.dictionaryVersion}</span>
+              {": "}
+              {dictionary.data.indicatorsCreated} new indicators, {dictionary.data.aliasesCreated} new
+              aliases, {dictionary.data.aliasesAdopted} pending aliases resolved,{" "}
+              {dictionary.data.aliasesSkippedHuman} human decisions left untouched.
+            </p>
+          ) : null}
         </CardContent>
       </Card>
 
