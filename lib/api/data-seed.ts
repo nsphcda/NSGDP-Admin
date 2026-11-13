@@ -64,6 +64,13 @@ export async function startDataSeed(options: DataSeedOptions): Promise<SeedRunSt
   return response.data.data;
 }
 
+export async function applyDictionary(): Promise<DictionarySeedReport> {
+  const response = await apiClient.post<ApiResponse<DictionarySeedReport>>(
+    "/admin/data-seed/dictionary",
+  );
+  return response.data.data;
+}
+
 export async function getDataSeedStatus(): Promise<SeedRunState | null> {
   const response = await apiClient.get<ApiResponse<{ run: SeedRunState | null }>>(
     "/admin/data-seed/status",
