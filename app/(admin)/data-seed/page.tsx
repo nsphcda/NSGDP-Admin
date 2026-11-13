@@ -312,6 +312,20 @@ export default function DataSeedPage() {
                 </div>
               ))}
             </div>
+            {run.dictionary ? (
+              <p className="rounded-lg border p-3 text-sm">
+                <span className="font-medium">Indicator dictionary v{run.dictionary.dictionaryVersion}</span>
+                {": "}
+                {run.dictionary.indicatorsCreated} new indicators, {run.dictionary.aliasesCreated} new
+                aliases, {run.dictionary.aliasesAdopted} pending aliases resolved,{" "}
+                {run.dictionary.aliasesSkippedHuman} human decisions left untouched.
+              </p>
+            ) : null}
+            {run.dictionaryError ? (
+              <p className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm">
+                Dictionary update failed: {run.dictionaryError}. Datasets were still imported.
+              </p>
+            ) : null}
             {!running && run.summary.failed > 0 ? (
               <p className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm">
                 Some items failed (see below). Fix the cause, then run the import again: it resumes

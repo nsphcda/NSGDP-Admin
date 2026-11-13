@@ -27,6 +27,16 @@ export interface SeedItemState extends SeedPlanItem {
   steps: string[];
 }
 
+export interface DictionarySeedReport {
+  dictionaryVersion: string;
+  indicatorsCreated: number;
+  indicatorsExisting: number;
+  aliasesCreated: number;
+  aliasesAdopted: number;
+  aliasesSkippedExisting: number;
+  aliasesSkippedHuman: number;
+}
+
 export interface SeedRunState {
   id: string;
   state: "running" | "finished";
@@ -34,6 +44,8 @@ export interface SeedRunState {
   finishedAt?: string;
   options: DataSeedOptions;
   items: SeedItemState[];
+  dictionary: DictionarySeedReport | null;
+  dictionaryError?: string;
   summary: { total: number; published: number; skipped: number; failed: number };
 }
 
