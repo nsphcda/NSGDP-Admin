@@ -153,7 +153,7 @@ export const INGESTION_OPS_TAB_HELP: Record<IngestionOpsTabId, IngestionOpsTabHe
       },
       {
         if: "Job is stuck with no progress",
-        then: "Check Queues tab (workers running?). Restart worker if needed, then retry.",
+        then: "Check the Queues tab (are workers running?). If not, contact the platform team, then retry.",
       },
       {
         if: "Approved but never started",
@@ -491,7 +491,7 @@ export const INGESTION_OPS_TAB_HELP: Record<IngestionOpsTabId, IngestionOpsTabHe
     whatYouCanDo: [
       "See if workers are keeping up (waiting jobs should stay low)",
       "Spot degraded queue health",
-      "Know when to restart npm run start:worker in the backend",
+      "Know when to ask the platform team to restart background processing",
     ],
     steps: [
       {
@@ -503,8 +503,8 @@ export const INGESTION_OPS_TAB_HELP: Record<IngestionOpsTabId, IngestionOpsTabHe
         detail: "upload-processing and publish queues matter most for ingestion ops.",
       },
       {
-        title: "Restart worker if waiting grows",
-        detail: "On the server: npm run start:worker in nsgdp-backend.",
+        title: "Ask for a restart if waiting grows",
+        detail: "Ask the platform team to restart background processing.",
       },
     ],
     whatHappensNext: [
@@ -540,7 +540,7 @@ export const INGESTION_OPS_TAB_HELP: Record<IngestionOpsTabId, IngestionOpsTabHe
       },
       {
         title: "Fix the root cause",
-        detail: "Re-upload file, clear aliases, resolve conflicts, or restart worker as needed.",
+        detail: "Re-upload file, clear aliases, resolve conflicts, or ask the platform team to restart background processing.",
       },
       {
         title: "Replay the job",

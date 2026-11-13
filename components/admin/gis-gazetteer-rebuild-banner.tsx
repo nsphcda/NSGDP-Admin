@@ -203,8 +203,8 @@ export function GisGazetteerRebuildStatus({
       ) : null}
       {queued ? (
         <p className="mt-1 text-xs text-muted-foreground">
-          Run <code className="rounded bg-muted px-1">npm run worker</code> in nsgdp-backend if
-          this stays queued.
+          If this stays queued for several minutes, check System Health or contact the platform
+          team.
         </p>
       ) : null}
     </div>
