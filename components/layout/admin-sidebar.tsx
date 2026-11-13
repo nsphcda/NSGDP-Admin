@@ -28,6 +28,7 @@ import {
   Landmark,
   CircleUser,
   GraduationCap,
+  DatabaseBackup,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AdminPortalLinks, AdminSidebarBrand } from "@/components/layout/admin-header";
@@ -94,6 +95,7 @@ export const adminNavItems: Array<{
   { href: "/programs", label: "Programmes", icon: Target, anyPermission: ["create:programs", "edit:programs", "upload:programs", "delete:programs"] },
   { href: "/collections", label: "Collections", icon: FolderKanban },
   { href: "/learning", label: "Learning Hub", icon: GraduationCap, anyPermission: ["manage:learning"] },
+  { href: "/data-seed", label: "Data Import (temp)", icon: DatabaseBackup, superAdminOnly: true },
   { href: "/analytics", label: "Platform Analytics", icon: BarChart3 },
   {
     href: "/partner-interest",
