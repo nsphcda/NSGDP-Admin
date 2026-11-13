@@ -3,6 +3,7 @@
 import { useQueries } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth";
 import { useAdminAccess } from "@/lib/hooks/useAdminAccess";
+import { useStaggerStep } from "@/lib/hooks/useStaggeredEnable";
 import {
   fetchAccessRequestsBadgeCount,
   fetchArchiveRequestsBadgeCount,
@@ -13,6 +14,8 @@ import {
 } from "@/lib/api/nav-badges";
 
 const BADGE_STALE_MS = 60_000;
+/** Gap between the first requests of the six badges, so they do not all hit at once. */
+const BADGE_STAGGER_MS = 450;
 
 export type AdminNavBadgeKey =
   | "datasetReviewQueue"
@@ -45,6 +48,8 @@ export function useAdminNavBadges(): {
   const canContact =
     isSuperAdmin || canAny("view:contact-messages", "review:contact-messages");
 
+  const step = useStaggerStep(6, BADGE_STAGGER_MS);
+
   const results = useQueries({
     queries: [
       {
@@ -59,42 +64,42 @@ export function useAdminNavBadges(): {
             includeValidatorCounts: canDatasetQueueValidate,
             includeApproverCount: canDatasetQueueApprove,
           }),
-        enabled: canDatasetQueue,
+        enabled: canDatasetQueue && step > 0,
         staleTime: BADGE_STALE_MS,
         refetchInterval: BADGE_STALE_MS,
       },
       {
         queryKey: ["admin-nav-badge", "documentReviewQueue"],
         queryFn: fetchDocumentReviewBadgeCount,
-        enabled: canDocumentQueue,
+        enabled: canDocumentQueue && step > 1,
         staleTime: BADGE_STALE_MS,
         refetchInterval: BADGE_STALE_MS,
       },
       {
         queryKey: ["admin-nav-badge", "accessRequests"],
         queryFn: fetchAccessRequestsBadgeCount,
-        enabled: canAccessRequests,
+        enabled: canAccessRequests && step > 2,
         staleTime: BADGE_STALE_MS,
         refetchInterval: BADGE_STALE_MS,
       },
       {
         queryKey: ["admin-nav-badge", "archiveRequests"],
         queryFn: fetchArchiveRequestsBadgeCount,
-        enabled: canArchiveRequests,
+        enabled: canArchiveRequests && step > 3,
         staleTime: BADGE_STALE_MS,
         refetchInterval: BADGE_STALE_MS,
       },
       {
         queryKey: ["admin-nav-badge", "partnerInterest"],
         queryFn: fetchPartnerInterestBadgeCount,
-        enabled: canPartnerInterest,
+        enabled: canPartnerInterest && step > 4,
         staleTime: BADGE_STALE_MS,
         refetchInterval: BADGE_STALE_MS,
       },
       {
         queryKey: ["admin-nav-badge", "contactMessages"],
         queryFn: fetchContactMessagesBadgeCount,
-        enabled: canContact,
+        enabled: canContact && step > 5,
         staleTime: BADGE_STALE_MS,
         refetchInterval: BADGE_STALE_MS,
       },
