@@ -6,10 +6,15 @@ on:
   pull_request:
     branches: [main, develop]
 
+# Lint, build and audit run on pull requests only. On a push to main they would
+# repeat the Next.js build that the server's Docker build does anyway, and none of
+# them can block a deploy (lint and audit are continue-on-error; a broken build
+# fails the server build before the running container is swapped).
 jobs:
   lint-and-build:
     name: Lint and Build
     runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
 
     steps:
       - name: Checkout code
@@ -46,6 +51,7 @@ jobs:
     name: Security Scan
     runs-on: ubuntu-latest
     needs: lint-and-build
+    if: github.event_name == 'pull_request'
 
     steps:
       - name: Checkout code
@@ -58,7 +64,6 @@ jobs:
   deploy-production:
     name: Deploy to Production
     runs-on: ubuntu-latest
-    needs: [lint-and-build, security-scan]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     timeout-minutes: 30
     # One deploy at a time; a newer push waits instead of cancelling a build
