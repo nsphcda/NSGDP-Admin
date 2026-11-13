@@ -100,7 +100,8 @@ export function useSearchWardsInLga(lga: string, q: string, open: boolean) {
   return useQuery({
     queryKey: ['gis-ward-search', lga, q],
     queryFn: () => searchWardsInLga(lga, q || undefined),
-    enabled: open && !!lga.trim(),
+    // An empty LGA searches every ward, so the list is never blank just for lack of a hint.
+    enabled: open,
   });
 }
 

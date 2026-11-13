@@ -27,7 +27,9 @@ interface OrgunitConfirmDialogProps {
 export function OrgunitConfirmDialog({ item, onOpenChange }: OrgunitConfirmDialogProps) {
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const lgaHint = item?.sample?.rawOrgunit?.split("/")[0]?.trim() ?? "";
+  // The sample's org-unit text is the row label itself (the ward being confirmed), so it
+  // cannot name the LGA. The workbook sheet is the LGA in the sheet-per-LGA templates.
+  const lgaHint = item?.cellRef?.split("!")[0]?.replace(/^'|'$/g, "").trim() ?? "";
   const { data: wards, isLoading } = useSearchWardsInLga(
     lgaHint,
     search || item?.rawText || "",
