@@ -75,6 +75,22 @@ export function hasShapeSignal(fitness: IngestionFitness): boolean {
   return fitness.reasons.some((reason) => CATALOGUE_ONLY_REASONS.has(reason));
 }
 
+/**
+ * Nothing is usable and nothing is waiting to be fixed (no names, headings or periods to
+ * resolve, no out-of-area rows), so a person has nothing to do.
+ */
+export function hasNothingToFix(fitness: IngestionFitness): boolean {
+  if (fitness.metrics.usable !== 0) return false;
+  if (hasShapeSignal(fitness)) return true;
+  const m = fitness.metrics;
+  return (
+    m.orgPending === 0 &&
+    m.indicatorPending === 0 &&
+    m.periodUnresolved === 0 &&
+    m.outOfScope === 0
+  );
+}
+
 export function isCatalogueOnlyFitness(fitness: IngestionFitness): boolean {
   if (fitness.verdict !== "rejected_unusable") return false;
   if (fitness.reasons.length === 0) return true;
@@ -85,7 +101,7 @@ export function isCatalogueOnlyFitness(fitness: IngestionFitness): boolean {
 export function fitnessVerdictLabel(fitness: IngestionFitness): string {
   if (fitness.verdict === "ok") return FITNESS_VERDICT_LABEL.ok;
   if (fitness.verdict === "flagged") {
-    return hasShapeSignal(fitness)
+    return hasNothingToFix(fitness)
       ? FITNESS_VERDICT_LABEL.flagged
       : "Check before loading into analytics";
   }
@@ -95,7 +111,7 @@ export function fitnessVerdictLabel(fitness: IngestionFitness): string {
 
 export function fitnessVerdictDescription(fitness: IngestionFitness): string {
   if (fitness.verdict === "flagged") {
-    if (hasShapeSignal(fitness)) {
+    if (hasNothingToFix(fitness)) {
       return "This file has no indicator values the warehouse can use. It is still published in the catalogue. Nothing to fix if it is meant for the catalogue.";
     }
     return "Some rows could not be used yet. Check the Aliases tab, then re-run the ingestion.";
@@ -121,9 +137,7 @@ export function fitnessTone(verdict: IngestionFitnessVerdict): MetricTone {
 export function fitnessDisplayTone(fitness: IngestionFitness): MetricTone {
   if (fitness.verdict === "ok") return "success";
   if (fitness.verdict === "flagged") {
-    return hasShapeSignal(fitness) && fitness.metrics.usable === 0
-      ? "info"
-      : "warning";
+    return hasNothingToFix(fitness) ? "info" : "warning";
   }
   if (isCatalogueOnlyFitness(fitness)) return "info";
   return "destructive";
