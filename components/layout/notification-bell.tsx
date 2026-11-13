@@ -9,16 +9,20 @@ import { playNotificationSound } from "@/lib/utils/notification-sound";
 export function NotificationBell({ onNavigate }: { onNavigate?: () => void } = {}) {
   const { data } = useNotifications(1, 1, true);
   const unreadCount = data?.meta.total ?? 0;
+  const countLoaded = data !== undefined;
 
-  // Chime when unread count rises — never on the first render, so opening
-  // the app with existing unread notifications stays silent.
+  // Chime when unread count rises, never for the first real value, so opening the
+  // app with existing unread notifications stays silent. Until the count has loaded
+  // it reads as 0, which must not count as the first value (the real number would
+  // then look like a rise).
   const previousUnread = useRef<number | null>(null);
   useEffect(() => {
+    if (!countLoaded) return;
     if (previousUnread.current !== null && unreadCount > previousUnread.current) {
       playNotificationSound();
     }
     previousUnread.current = unreadCount;
-  }, [unreadCount]);
+  }, [countLoaded, unreadCount]);
 
   return (
     <Link
