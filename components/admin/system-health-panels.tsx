@@ -181,8 +181,8 @@ export function QueueHealthPanel({
         >
           {workers.length === 0 ? (
             <p className="text-sm text-muted-foreground">
-              Uploads, emails and ingestion are not being processed. Check that
-              the worker container is running.
+              Uploads, emails and ingestion are not being processed. Contact the
+              platform team to restart background processing.
             </p>
           ) : (
             <ul className="divide-y text-sm">
