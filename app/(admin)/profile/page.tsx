@@ -1,6 +1,6 @@
 "use client";
 
-import { Bell, KeyRound, Lock, Shield, User as UserIcon } from "lucide-react";
+import { Bell, KeyRound, Shield, User as UserIcon } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { Panel } from "@/components/admin/admin-analytics-ui";
 import { Badge } from "@/components/ui/badge";
@@ -76,20 +76,12 @@ export default function ProfilePage() {
         <MfaSettingsPanel
           initialEnabled={user.mfaEnabled}
           initialMethod={user.mfaMethod ?? null}
-          hasPhoneNumber={!!user.phoneNumber}
         />
       </Panel>
 
       <Panel title="Notifications" icon={Bell} tone="muted">
         <NotificationSoundToggle />
       </Panel>
-
-      {!user.phoneNumber ? (
-        <p className="flex items-center gap-2 text-xs text-muted-foreground">
-          <Lock className="size-3.5" aria-hidden />
-          No phone number on file — text-message codes aren&apos;t available until one is added. Contact a super admin to add one.
-        </p>
-      ) : null}
     </div>
   );
 }

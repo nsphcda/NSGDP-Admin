@@ -8,7 +8,7 @@ async function unwrapResponse<T>(
   return { data: response.data.data };
 }
 
-export type MfaMethod = 'totp' | 'sms' | 'email';
+export type MfaMethod = 'totp' | 'email';
 
 export interface AdminLoginRequest {
   email: string;
