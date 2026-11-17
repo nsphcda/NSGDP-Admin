@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { ArrowLeft, Eye, EyeOff, Mail, MessageSquare, Smartphone } from "lucide-react";
+import { ArrowLeft, Eye, EyeOff, Mail, Smartphone } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,12 +18,6 @@ const MFA_COPY: Record<MfaMethod, { icon: typeof Smartphone; title: string; body
     title: "Enter your authenticator code",
     body: "Open your authenticator app and enter the 6-digit code it's showing.",
     canResend: false,
-  },
-  sms: {
-    icon: MessageSquare,
-    title: "Enter the code we texted you",
-    body: "We sent a code to the phone number on your account. It expires in a few minutes.",
-    canResend: true,
   },
   email: {
     icon: Mail,

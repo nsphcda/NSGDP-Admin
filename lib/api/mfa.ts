@@ -31,14 +31,6 @@ export const mfaApi = {
       apiClient.post<ApiResponse<MfaBackupCodesResponse>>('/auth/mfa/verify-setup', { code })
     ),
 
-  sendSms: () =>
-    unwrap(apiClient.post<ApiResponse<{ expiresIn: number }>>('/auth/mfa/send-sms')),
-
-  verifySmsSetup: (code: string) =>
-    unwrap(
-      apiClient.post<ApiResponse<MfaBackupCodesResponse>>('/auth/mfa/verify-sms', { code })
-    ),
-
   sendEmail: () =>
     unwrap(apiClient.post<ApiResponse<{ expiresIn: number }>>('/auth/mfa/send-email')),
 
