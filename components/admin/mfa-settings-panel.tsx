@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import { Check, Copy, Eye, EyeOff, Lock, Mail, MessageSquare, ShieldCheck, ShieldOff, Smartphone } from "lucide-react";
+import { Check, Copy, Eye, EyeOff, Lock, Mail, ShieldCheck, ShieldOff, Smartphone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -20,7 +20,6 @@ import { toast } from "sonner";
 
 const METHODS: Array<{ id: MfaMethod; label: string; blurb: string; icon: typeof Smartphone }> = [
   { id: "totp", label: "Authenticator app", blurb: "Google Authenticator, Authy, 1Password, etc.", icon: Smartphone },
-  { id: "sms", label: "Text message", blurb: "A code sent to the phone number on your account.", icon: MessageSquare },
   { id: "email", label: "Email", blurb: "A code sent to your account's email address.", icon: Mail },
 ];
 
@@ -29,10 +28,9 @@ type Stage = "status" | "choose" | "totp-scan" | "code-entry" | "backup-codes";
 interface MfaSettingsPanelProps {
   initialEnabled: boolean;
   initialMethod: MfaMethod | null;
-  hasPhoneNumber: boolean;
 }
 
-export function MfaSettingsPanel({ initialEnabled, initialMethod, hasPhoneNumber }: MfaSettingsPanelProps) {
+export function MfaSettingsPanel({ initialEnabled, initialMethod }: MfaSettingsPanelProps) {
   const [enabled, setEnabled] = useState(initialEnabled);
   const [method, setMethod] = useState<MfaMethod | null>(initialMethod);
   const [stage, setStage] = useState<Stage>("status");
@@ -67,14 +65,6 @@ export function MfaSettingsPanel({ initialEnabled, initialMethod, hasPhoneNumber
         setTotpSecret(res.secret);
         setQrCodeDataUrl(res.qrCodeDataUrl);
         setStage("totp-scan");
-      } else if (m === "sms") {
-        if (!hasPhoneNumber) {
-          toast.error("Add a phone number to your profile first, then come back to enable this.");
-          return;
-        }
-        await mfaApi.sendSms();
-        toast.success("Code sent — check your phone.");
-        setStage("code-entry");
       } else {
         await mfaApi.sendEmail();
         toast.success("Code sent — check your email.");
@@ -94,9 +84,7 @@ export function MfaSettingsPanel({ initialEnabled, initialMethod, hasPhoneNumber
       const result =
         pendingMethod === "totp"
           ? await mfaApi.verifyTotpSetup(code.trim())
-          : pendingMethod === "sms"
-            ? await mfaApi.verifySmsSetup(code.trim())
-            : await mfaApi.verifyEmailSetup(code.trim());
+          : await mfaApi.verifyEmailSetup(code.trim());
 
       setBackupCodes(result.backupCodes);
       setEnabled(true);
@@ -114,8 +102,7 @@ export function MfaSettingsPanel({ initialEnabled, initialMethod, hasPhoneNumber
     if (!pendingMethod || pendingMethod === "totp") return;
     setBusy(true);
     try {
-      if (pendingMethod === "sms") await mfaApi.sendSms();
-      else await mfaApi.sendEmail();
+      await mfaApi.sendEmail();
       toast.success("New code sent.");
     } catch {
       toast.error("Couldn't resend — try again in a moment.");
@@ -190,7 +177,7 @@ export function MfaSettingsPanel({ initialEnabled, initialMethod, hasPhoneNumber
       {stage === "choose" && (
         <div className="space-y-3">
           <p className="text-sm text-muted-foreground">Choose how you&apos;d like to receive your codes.</p>
-          <div className="grid gap-2 sm:grid-cols-3">
+          <div className="grid gap-2 sm:grid-cols-2">
             {METHODS.map((m) => {
               const Icon = m.icon;
               return (
@@ -261,7 +248,7 @@ export function MfaSettingsPanel({ initialEnabled, initialMethod, hasPhoneNumber
       {stage === "code-entry" && pendingMethod && pendingMethod !== "totp" && (
         <div className="space-y-4">
           <p className="text-sm text-muted-foreground">
-            Enter the code we just sent {pendingMethod === "sms" ? "to your phone" : "to your email"}.
+            Enter the code we just sent to your email.
           </p>
           <div>
             <label htmlFor="otp-code" className="mb-1.5 block text-sm font-medium">
